@@ -1,0 +1,8 @@
+{
+  "name": "Tornix Assessment Platform",
+  "description": "Premium modern assessment platform with dark mode and glassmorphism design.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

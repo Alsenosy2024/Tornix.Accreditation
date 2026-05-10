@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "Assessment": {
+      "title": "Assessment",
+      "description": "Student assessment result",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "score": { "type": "number" },
+        "integrityScore": { "type": "number" },
+        "serialNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["completed", "terminated"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userEmail", "score", "integrityScore", "status", "createdAt"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Video course with AI generated chapters",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "chapters": {
+          "type": "array",
+          "items": {
+             "type": "object",
+             "properties": {
+                "title": { "type": "string" },
+                "summary": { "type": "string" },
+                "startTime": { "type": "number" },
+                "endTime": { "type": "number" }
+             }
+          }
+        },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "BrandingSetting": {
+      "title": "BrandingSetting",
+      "description": "Global branding settings configured by Admins",
+      "type": "object",
+      "properties": {
+        "logo": { "type": "string" },
+        "badge": { "type": "string" },
+        "certBg": { "type": "string" },
+        "nameY": { "type": "number" },
+        "serialY": { "type": "number" },
+        "fontFamily": { "type": "string" },
+        "nameColor": { "type": "string" },
+        "serialColor": { "type": "string" },
+        "serialFontSize": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Authorized admin users",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}/assessments/{assessmentId}": {
+      "schema": { "$ref": "#/entities/Assessment" },
+      "description": "Results belonging to a specific user"
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Video courses for the platform"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/BrandingSetting" },
+      "description": "Global branding and application settings"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "List of authorized IDs who can edit settings"
+    }
+  }
+}

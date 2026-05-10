@@ -1,0 +1,126 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+@theme {
+  --font-sans: "Inter", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", "Inter", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
+  
+  --color-primary: var(--primary);
+  --color-primary-dim: var(--primary-dim);
+  --color-accent: #D4AF37;
+  
+  --color-bg: var(--bg);
+  --color-bg-alt: var(--bg-alt);
+  --color-bg-inverse: var(--bg-inverse);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+}
+
+@layer base {
+  :root {
+    --primary: #0052FF;
+    --primary-dim: #EEF2FF;
+    --bg: #F8FAFC;
+    --bg-alt: #FFFFFF;
+    --bg-inverse: #020617;
+    --card: #FFFFFF;
+    --border: #E2E8F0;
+    --text: #0F172A;
+    --text-dim: #334155;
+    --nav-bg: rgba(248, 250, 252, 0.85);
+  }
+
+  :root[data-theme='dark'] {
+    --primary: #3B82F6;
+    --primary-dim: #1E293B;
+    --bg: #020617;
+    --bg-alt: #0B0F1A;
+    --bg-inverse: #F8FAFC;
+    --card: #0F172A;
+    --border: #1E293B;
+    --text: #F1F5F9;
+    --text-dim: #CBD5E1;
+    --nav-bg: rgba(2, 6, 23, 0.85);
+  }
+
+  body {
+    @apply bg-bg text-text antialiased font-sans selection:bg-primary/20 selection:text-primary;
+    line-height: 1.5;
+  }
+}
+
+/* Minimal Typographic Scale */
+.text-h1 { @apply text-[2.5rem] leading-[1.1] font-bold tracking-tight; }
+.text-h2 { @apply text-[1.75rem] leading-[1.2] font-semibold tracking-tight; }
+.text-h3 { @apply text-[1.25rem] leading-[1.4] font-semibold; }
+.text-h4 { @apply text-[1rem] leading-[1.5] font-medium; }
+.text-body-l { @apply text-[1rem] leading-[1.6]; }
+.text-body-m { @apply text-[0.875rem] leading-[1.6]; }
+.text-caption { @apply text-[0.75rem] leading-[1.5] text-text-dim; }
+
+/* Flat / Minimal Button States */
+.btn-glass {
+  @apply bg-primary text-white border border-transparent transition-all duration-300 shadow-lg shadow-primary/20;
+}
+.btn-glass:hover { @apply opacity-90 -translate-y-0.5 shadow-xl shadow-primary/30; }
+.btn-glass:active { @apply translate-y-0 shadow-md; }
+.btn-glass:disabled { @apply opacity-50 cursor-not-allowed translate-y-0 shadow-none; }
+
+.ai-gradient-text { 
+  @apply font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-accent;
+}
+.ai-gradient-bg { 
+  @apply bg-gradient-to-br from-primary/5 via-indigo-500/5 to-accent/5 border border-primary/20;
+}
+.glass { @apply bg-card/80 backdrop-blur-md border border-border rounded-[2rem] shadow-sm; }
+.nav-bar { @apply h-[72px] flex items-center justify-between px-6 md:px-12 border-b border-border bg-[var(--nav-bg)] backdrop-blur-md sticky top-0 z-[100]; }
+.logo-text { @apply text-2xl font-bold tracking-tight text-text; }
+
+.sidebar-container { @apply flex flex-col gap-3; }
+.step-btn { @apply p-4 rounded-2xl flex items-center gap-3 bg-transparent transition-all duration-300 border border-transparent hover:bg-border/40 text-text hidden sm:flex; }
+.step-btn.active { @apply bg-card border-border shadow-md text-text font-semibold scale-[1.02]; }
+.step-num { @apply w-7 h-7 rounded-xl bg-border flex items-center justify-center text-[11px] font-bold text-text-dim transition-colors; }
+.step-btn.active .step-num { @apply bg-primary text-white; }
+.quiz-card-theme { @apply p-10 md:p-16 flex-1 flex flex-col bg-card border border-border rounded-[2.5rem] shadow-xl shadow-black/5 relative overflow-hidden; }
+
+.progress-track { @apply w-full h-[6px] bg-border/50 rounded-full mb-10 overflow-hidden; }
+.progress-fill { @apply h-full bg-gradient-to-r from-primary to-indigo-500 rounded-full transition-all duration-700 ease-out; }
+.btn-theme { @apply px-8 py-3.5 rounded-2xl font-bold cursor-pointer border transition-all duration-300 flex items-center justify-center gap-2 outline-none; }
+.btn-primary-theme { @apply bg-primary text-white border-transparent hover:shadow-lg hover:shadow-primary/25 active:scale-95; }
+.btn-outline-theme { @apply bg-bg border-border text-text hover:bg-border/30 hover:border-text/20; }
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+    direction: ltr !important;
+    margin: 0;
+    padding: 0;
+  }
+  .print-only {
+    display: flex !important;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.print-only {
+  display: none;
+}

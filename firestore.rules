@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    
+    // Admin Check. Bootstrap admin + checked admins map.
+    function isAdmin() { 
+      return request.auth != null && (
+        ("email" in request.auth.token && (
+          request.auth.token.email == "ahmed0ibrahim@gmail.com" || 
+          request.auth.token.email == "ahmedzeroibrahim@gmail.com"
+        )) || 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /{path=**}/assessments/{assessmentId} {
+        allow read: if isAdmin();
+    }
+
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId}/assessments/{assessmentId} {
+        allow get: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        
+        allow list: if request.auth != null && request.auth.uid == userId;
+        
+        allow create: if request.auth != null &&
+                         request.auth.uid == userId &&
+                         incoming().userId == userId &&
+                         incoming().status in ["Started", "completed", "terminated"] &&
+                         incoming().score is number &&
+                         incoming().integrityScore is number;
+                         
+        allow update: if false;
+        allow delete: if isAdmin();
+    }
+  }
+}
