@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Upload, Video, Plus, FileText, Check, Loader2 } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, storage } from '../firebase';
-import { GoogleGenAI } from '@google/genai';
 
 interface CoursesAdminProps {
   lang: 'ar' | 'en';
@@ -91,51 +90,72 @@ export const CoursesAdmin: React.FC<CoursesAdminProps> = ({ lang }) => {
     }
   };
 
+  const isAr = lang === 'ar';
   return (
-    <div className="p-6">
-       <h2 className="text-2xl font-bold text-text mb-6">{lang === 'ar' ? 'إدارة الكورسات والمقاطع' : 'Course & Modules Management'}</h2>
-       
-       <div className="bg-bg border border-border rounded-2xl p-6">
-           <h3 className="text-lg font-bold text-text mb-4">{lang === 'ar' ? 'رفع كورس جديد (تقسيم تلقائي AI)' : 'Upload New Course (Auto AI Segmentation)'}</h3>
-           
-           <div className="space-y-4">
-               <div>
-                   <label className="block text-sm text-text-dim mb-2">{lang === 'ar' ? 'عنوان الكورس' : 'Course Title'}</label>
-                   <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-bg border border-border rounded-xl px-4 py-3 text-text" placeholder={lang === 'ar' ? "مثال: الكورس التحضيري الشامل" : "e.g. Comprehensive Prep Course"} />
-               </div>
+    <div>
+      <span className="text-label">{isAr ? 'إدارة الكورسات' : 'Courses'}</span>
+      <h2 className="text-h2 mt-1 mb-6" style={{ color: 'var(--text-heading)' }}>
+        {isAr ? 'رفع كورس جديد' : 'Upload a new course'}
+      </h2>
 
-               <div>
-                   <label className="block text-sm text-text-dim mb-2">{lang === 'ar' ? 'ملف الفيديو' : 'Video File'}</label>
-                   <div className="border-2 border-dashed border-border rounded-xl p-8 text-center bg-bg/50">
-                       <input type="file" accept="video/mp4,video/x-m4v,video/*" onChange={handleFileChange} className="hidden" id="video-upload" />
-                       <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center justify-center">
-                           <Upload className="w-10 h-10 text-primary mb-3" />
-                           <span className="text-text font-bold">{file ? file.name : (lang === 'ar' ? 'اضغط لاختيار فيديو' : 'Click to select video')}</span>
-                           <span className="text-sm text-text-dim mt-1">{lang === 'ar' ? 'سيتم تحليله وتقسيمه بالذكاء الاصطناعي' : 'Will be analyzed and segmented by AI'}</span>
-                       </label>
-                   </div>
-               </div>
+      <div className="card card-tight p-5 md:p-6 space-y-5">
+        <label className="block">
+          <span className="text-label block mb-2">{isAr ? 'عنوان الكورس' : 'Course title'}</span>
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            className="input"
+            placeholder={isAr ? 'مثال: الكورس التحضيري الشامل' : 'e.g. Tornix prep course'}
+            dir="auto"
+          />
+        </label>
 
-               {status && (
-                   <div className="text-sm font-medium text-primary mt-2 flex items-center gap-2">
-                       {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-                       {status}
-                   </div>
-               )}
+        <div>
+          <span className="text-label block mb-2">{isAr ? 'ملف الفيديو' : 'Video file'}</span>
+          <input type="file" accept="video/mp4,video/x-m4v,video/*" onChange={handleFileChange} className="hidden" id="video-upload" />
+          <label
+            htmlFor="video-upload"
+            className="block cursor-pointer rounded-2xl px-6 py-7 text-center transition-colors"
+            style={{ background: 'var(--bg-alt)', border: '1px dashed var(--border-strong)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'var(--primary-wash)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.background = 'var(--bg-alt)'; }}
+          >
+            <div className="w-10 h-10 rounded-full grid place-items-center mx-auto mb-3" style={{ background: 'var(--primary-tint)', color: 'var(--primary-deep)' }}>
+              <Upload className="w-4 h-4" />
+            </div>
+            <p className="text-body-m font-medium" style={{ color: 'var(--text-heading)' }}>
+              {file ? file.name : (isAr ? 'اضغط لاختيار فيديو' : 'Click to choose a video')}
+            </p>
+            <p className="text-caption mt-1">
+              {isAr ? 'سيتمّ تحليله وتقسيمه آلياً.' : 'Auto-analysed and chaptered after upload.'}
+            </p>
+          </label>
+        </div>
 
-               {uploadProgress > 0 && uploadProgress < 100 && (
-                   <div className="w-full bg-border rounded-full h-2.5 mt-2">
-                     <div className="bg-primary h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                   </div>
-               )}
+        {status && (
+          <div className="flex items-center gap-2 text-body-m" style={{ color: 'var(--primary-deep)' }}>
+            {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+            <span>{status}</span>
+          </div>
+        )}
 
-               <button disabled={isProcessing || !file || !title} onClick={uploadAndProcess} className="mt-4 w-full py-3 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-                   {isProcessing ? (lang === 'ar' ? 'جاري المعالجة...' : 'Processing...') : (lang === 'ar' ? 'رفع وبدء التحليل' : 'Upload & Start Analysis')}
-               </button>
-           </div>
-       </div>
+        {uploadProgress > 0 && uploadProgress < 100 && (
+          <div className="progress-track" style={{ height: 6 }}>
+            <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
+          </div>
+        )}
 
-       {/* List of courses could go here */}
+        <button
+          disabled={isProcessing || !file || !title}
+          onClick={uploadAndProcess}
+          className="btn btn-primary btn-md w-full"
+        >
+          {isProcessing
+            ? (isAr ? 'جاري المعالجة...' : 'Processing...')
+            : (isAr ? 'رفع وبدء التحليل' : 'Upload & analyse')}
+        </button>
+      </div>
     </div>
   );
 };

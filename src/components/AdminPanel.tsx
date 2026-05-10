@@ -362,323 +362,382 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
     }
   }, [activeTab]);
 
+  const isAr = lang === 'ar';
+  const tabs: { key: typeof activeTab; ar: string; en: string; Icon: any }[] = [
+    { key: 'dash',    ar: 'الإحصائيات والنتائج', en: 'Dashboard',         Icon: BarChart3 },
+    { key: 'logo',    ar: 'الشعار الرئيسي',       en: 'Main logo',          Icon: ImageIcon },
+    { key: 'badge',   ar: 'شارة الاعتماد',        en: 'Accreditation badge',Icon: CheckCircle },
+    { key: 'cert',    ar: 'قالب الشهادة',         en: 'Certificate template',Icon: FileText },
+    { key: 'email',   ar: 'إعدادات البريد',       en: 'Email settings',     Icon: Mail },
+    { key: 'courses', ar: 'إدارة الكورسات',       en: 'Courses',            Icon: FileText },
+  ];
+  const headings: Record<string, [string, string]> = {
+    dash:  ['سجل المتقدمين', 'Assessment records'],
+    logo:  ['تخصيص الشعار الرئيسي', 'Customize main logo'],
+    badge: ['تخصيص شارة الاعتماد', 'Customize accreditation badge'],
+    cert:  ['إعدادات الشهادة النهائية', 'Certificate template settings'],
+    email: ['إعدادات البريد الإلكتروني', 'Email settings'],
+  };
   return (
-    <div className="fixed inset-0 z-[1000] bg-bg/95 backdrop-blur-3xl flex items-center justify-center p-6 overflow-y-auto">
-      <div className="bg-card w-full max-w-4xl min-h-[600px] border border-border shadow-sm rounded-2xl overflow-hidden flex flex-col md:flex-row" style={{ direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
-        
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-6 overflow-y-auto"
+      style={{ background: 'rgba(15,23,42,0.45)', direction: isAr ? 'rtl' : 'ltr' }}
+    >
+      <div
+        className="card w-full max-w-5xl min-h-[640px] flex flex-col md:flex-row overflow-hidden"
+        style={{ borderRadius: 20 }}
+      >
         {/* Sidebar */}
-        <div className="w-full md:w-64 bg-bg p-6 border-b md:border-b-0 md:border-r border-border border-opacity-50">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-text"/> {lang === 'ar' ? 'لوحة التحكم' : 'Admin Panel'}</h2>
-            <button onClick={onClose} className="text-text-dim hover:text-text p-2 md:hidden"><X className="w-5 h-5" /></button>
+        <aside className="w-full md:w-60 shrink-0 p-5 md:p-6 md:border-r" style={{ borderColor: 'var(--border-hairline)', background: 'var(--bg-alt)' }}>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-full grid place-items-center" style={{ background: 'var(--primary-tint)', color: 'var(--primary-deep)' }}>
+                <Settings className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-h4 leading-tight" style={{ color: 'var(--text-heading)' }}>
+                  {isAr ? 'لوحة التحكم' : 'Admin'}
+                </div>
+                <div className="text-caption">{isAr ? 'الإعدادات والمحتوى' : 'Settings & content'}</div>
+              </div>
+            </div>
+            <button onClick={onClose} className="md:hidden btn btn-ghost btn-sm" aria-label={isAr ? 'إغلاق' : 'Close'}>
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          
-          <nav className="space-y-2">
-            <button 
-                onClick={() => { setActiveTab('dash'); setImgSrc(''); }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl font-medium transition-all ${activeTab === 'dash' ? 'bg-text text-bg shadow-sm' : 'text-text-dim hover:bg-border/50'}`}>
-                <BarChart3 className="w-5 h-5" /> {lang === 'ar' ? 'الإحصائيات والنتائج' : 'Dashboard & Results'}
-            </button>
-            <button 
-                onClick={() => { setActiveTab('logo'); setImgSrc(''); }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl font-medium transition-all ${activeTab === 'logo' ? 'bg-text text-bg shadow-sm' : 'text-text-dim hover:bg-border/50'}`}>
-                <ImageIcon className="w-5 h-5" /> {lang === 'ar' ? 'الشعار الرئيسي (اللوجو)' : 'Main Logo'}
-            </button>
-            <button 
-                onClick={() => { setActiveTab('badge'); setImgSrc(''); }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl font-medium transition-all ${activeTab === 'badge' ? 'bg-text text-bg shadow-sm' : 'text-text-dim hover:bg-border/50'}`}>
-                <CheckCircle className="w-5 h-5" /> {lang === 'ar' ? 'شارة الاعتماد (الشهادة)' : 'Certificate Badge'}
-            </button>
-            <button 
-                onClick={() => { setActiveTab('cert'); setImgSrc(''); }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl font-medium transition-all ${activeTab === 'cert' ? 'bg-text text-bg shadow-sm' : 'text-text-dim hover:bg-border/50'}`}>
-                <FileText className="w-5 h-5" /> {lang === 'ar' ? 'قالب الشهادة والصيغة' : 'Certificate Template'}
-            </button>
-            <button 
-                onClick={() => { setActiveTab('email'); setImgSrc(''); }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl font-medium transition-all ${activeTab === 'email' ? 'bg-text text-bg shadow-sm' : 'text-text-dim hover:bg-border/50'}`}>
-                <Mail className="w-5 h-5" /> {lang === 'ar' ? 'إعدادات البريد (EmailJS)' : 'EmailJS Settings'}
-            </button>
-            <button 
-                onClick={() => { setActiveTab('courses'); setImgSrc(''); }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl font-medium transition-all ${activeTab === 'courses' ? 'bg-text text-bg shadow-sm' : 'text-text-dim hover:bg-border/50'}`}>
-                <FileText className="w-5 h-5" /> {lang === 'ar' ? 'إدارة الكورسات' : 'Courses Management'}
-            </button>
+
+          <nav className="flex flex-col gap-0.5">
+            {tabs.map(t => {
+              const Icon = t.Icon;
+              const active = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => { setActiveTab(t.key); setImgSrc(''); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-start transition-colors"
+                  style={{
+                    background: active ? 'var(--primary-tint)' : 'transparent',
+                    color: active ? 'var(--primary-deep)' : 'var(--text-dim)',
+                  }}
+                  onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--border-hairline)'; }}
+                  onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-body-m font-medium">{isAr ? t.ar : t.en}</span>
+                </button>
+              );
+            })}
           </nav>
-        </div>
+        </aside>
 
         {/* Content */}
-        <div className="flex-1 p-8 flex flex-col relative overflow-y-auto">
-           <button onClick={onClose} className="absolute top-6 right-6 text-text-dim hover:text-text hidden md:block z-10">
-              <X className="w-6 h-6" />
-           </button>
+        <div className="flex-1 p-6 md:p-8 flex flex-col relative overflow-y-auto custom-scrollbar">
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 hidden md:grid w-9 h-9 place-items-center rounded-full transition-colors z-10"
+            style={{ color: 'var(--text-muted)', background: 'transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--border-hairline)'; e.currentTarget.style.color = 'var(--text-heading)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            aria-label={isAr ? 'إغلاق' : 'Close'}
+          >
+            <X className="w-4 h-4" />
+          </button>
 
-           {activeTab !== 'courses' && (
-             <div className="flex items-center justify-between mb-6">
-               <h3 className="text-2xl font-display font-medium">
-                  {activeTab === 'dash' && (lang === 'ar' ? 'سجل المتقدمين' : 'Assessments Record')}
-                  {activeTab === 'logo' && (lang === 'ar' ? 'تخصيص الشعار الرئيسي' : 'Customize Main Logo')}
-                  {activeTab === 'badge' && (lang === 'ar' ? 'تخصيص شارة الاعتماد' : 'Customize Certificate Badge')}
-                  {activeTab === 'cert' && (lang === 'ar' ? 'إعدادات الشهادة النهائية' : 'Final Certificate Settings')}
-                  {activeTab === 'email' && (lang === 'ar' ? 'إعدادات البريد الإلكتروني' : 'Email Sender Settings')}
-               </h3>
-               {activeTab === 'dash' && assessments.length > 0 && (
-                 <button onClick={exportCSV} className="flex items-center gap-2 btn-glass px-4 py-2 rounded-lg font-bold text-sm">
-                   <Download className="w-4 h-4" /> {lang === 'ar' ? 'تصدير إكسيل (CSV)' : 'Export CSV'}
-                 </button>
-               )}
-             </div>
-           )}
+          {activeTab !== 'courses' && (
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <span className="text-label">{isAr ? 'لوحة الإدارة' : 'Admin'}</span>
+                <h3 className="text-h2 mt-1" style={{ color: 'var(--text-heading)' }}>
+                  {isAr ? headings[activeTab][0] : headings[activeTab][1]}
+                </h3>
+              </div>
+              {activeTab === 'dash' && assessments.length > 0 && (
+                <button onClick={exportCSV} className="btn btn-secondary btn-md">
+                  <Download className="w-4 h-4" /> {isAr ? 'تصدير CSV' : 'Export CSV'}
+                </button>
+              )}
+            </div>
+          )}
 
            {activeTab === 'courses' && (
                <CoursesAdmin lang={lang} />
            )}
 
-           {activeTab === 'dash' && (
-             <div className="flex-1 overflow-auto">
-               {loadingStats ? (
-                  <div className="flex items-center justify-center p-10"><span className="animate-spin w-8 h-8 rounded-full border-4 border-text border-t-transparent"></span></div>
-               ) : (
-                  <div className="overflow-x-auto border border-border rounded-xl">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-text-dim uppercase bg-bg border-b border-border">
+          {activeTab === 'dash' && (
+            <div className="flex-1 overflow-auto">
+              {loadingStats ? (
+                <div className="flex items-center justify-center p-10">
+                  <span className="inline-block w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--border-hairline)', borderTopColor: 'var(--primary)' }} />
+                </div>
+              ) : (
+                <div className="card card-tight overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[0.875rem]" style={{ textAlign: isAr ? 'right' : 'left' }}>
+                      <thead style={{ background: 'var(--bg-alt)', color: 'var(--text-muted)' }}>
                         <tr>
-                          <th className="px-6 py-3">{lang === 'ar' ? 'الاسم' : 'Name'}</th>
-                          <th className="px-6 py-3">{lang === 'ar' ? 'البريد' : 'Email'}</th>
-                          <th className="px-6 py-3">{lang === 'ar' ? 'النتيجة' : 'Score'}</th>
-                          <th className="px-6 py-3">{lang === 'ar' ? 'النزاهة' : 'Integrity'}</th>
-                          <th className="px-6 py-3">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+                          <th className="px-5 py-3 font-semibold text-[0.75rem] uppercase tracking-wider">{isAr ? 'الاسم' : 'Name'}</th>
+                          <th className="px-5 py-3 font-semibold text-[0.75rem] uppercase tracking-wider">{isAr ? 'البريد' : 'Email'}</th>
+                          <th className="px-5 py-3 font-semibold text-[0.75rem] uppercase tracking-wider">{isAr ? 'النتيجة' : 'Score'}</th>
+                          <th className="px-5 py-3 font-semibold text-[0.75rem] uppercase tracking-wider">{isAr ? 'النزاهة' : 'Integrity'}</th>
+                          <th className="px-5 py-3 font-semibold text-[0.75rem] uppercase tracking-wider">{isAr ? 'الحالة' : 'Status'}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {assessments.length === 0 ? (
-                           <tr>
-                              <td colSpan={5} className="text-center py-10 text-text-dim">{lang === 'ar' ? 'لا توجد بيانات' : 'No data yet.'}</td>
-                           </tr>
-                        ) : assessments.map((a, i) => (
-                          <tr key={i} className="bg-card border-b border-border text-text">
-                            <td className="px-6 py-4 font-bold">{a.userName}</td>
-                            <td className="px-6 py-4">{a.userEmail}</td>
-                            <td className="px-6 py-4">
-                               <span className={a.score >= 60 ? 'text-primary font-bold' : 'text-rose-500 font-bold'}>{a.score}%</span>
+                          <tr>
+                            <td colSpan={5} className="text-center py-10" style={{ color: 'var(--text-muted)' }}>
+                              {isAr ? 'لا توجد بيانات بعد.' : 'No assessments yet.'}
                             </td>
-                            <td className="px-6 py-4">{a.integrityScore}%</td>
-                            <td className="px-6 py-4">
-                               <span className={`px-2 py-1 rounded-full text-xs font-medium border ${a.status === 'completed' ? 'border-border text-text' : 'border-rose-500/30 text-rose-500'}`}>
-                                 {a.status}
-                               </span>
+                          </tr>
+                        ) : assessments.map((a, i) => (
+                          <tr key={i} className="border-t" style={{ borderColor: 'var(--border-hairline)', color: 'var(--text)' }}>
+                            <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--text-heading)' }}>{a.userName}</td>
+                            <td className="px-5 py-3.5" style={{ color: 'var(--text-muted)' }}>{a.userEmail}</td>
+                            <td className="px-5 py-3.5 tabular-nums">
+                              <span className="badge" style={{
+                                background: a.score >= 60 ? '#DEFFEE' : '#FFE4E6',
+                                color:      a.score >= 60 ? '#065E41' : '#9F1239',
+                              }}>{a.score}%</span>
+                            </td>
+                            <td className="px-5 py-3.5 tabular-nums" style={{ color: 'var(--text-dim)' }}>{a.integrityScore}%</td>
+                            <td className="px-5 py-3.5">
+                              <span className={`badge ${a.status === 'completed' ? 'badge-completed' : 'badge-failed'}`}>
+                                {a.status === 'completed' ? (isAr ? 'مكتمل' : 'Completed') : (isAr ? 'منتهي' : 'Terminated')}
+                              </span>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-               )}
-             </div>
-           )}
-
-           {/* Current Image Display */}
-           {!imgSrc && activeTab !== 'dash' && (
-               <div className="bg-bg border border-border rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center gap-6">
-                  <div className={`w-full relative overflow-hidden flex items-center justify-center rounded-xl bg-border/10 border border-border ${activeTab === 'cert' ? 'aspect-[1/1.414] max-w-[280px] mx-auto shadow-md' : 'aspect-video md:w-1/2 md:h-48'}`} style={{ containerType: 'inline-size' }}>
-                     {(activeTab === 'cert' && !savedCert) ? (
-                         <span className="text-xs text-center text-slate-500 p-4">{lang === 'ar' ? 'لا يوجد قالب مخصص' : 'No custom template'}</span>
-                     ) : (
-                         <div className="relative w-full h-full flex items-center justify-center">
-                            <img 
-                               src={activeTab === 'logo' ? (savedLogo || '/tornix_logo.png') : activeTab === 'badge' ? (savedBadge || '/tcp_badge.png') : savedCert!} 
-                               alt="Current" 
-                               className="absolute inset-0 w-full h-full object-contain"
-                            />
-                            {/* Live WYSIWYG overlay for certificates */}
-                            {activeTab === 'cert' && savedCert && (
-                                <div className="absolute inset-0 pointer-events-none">
-                                    <div className="absolute inset-x-0 w-full text-center z-10 flex flex-col items-center px-[10%]" style={{ top: `${nameY}%`, transform: 'translateY(-50%)' }}>
-                                        <h1 
-                                          className={`font-bold leading-tight m-0 p-0 ${fontFamily}`} 
-                                          style={{ 
-                                            color: nameColor, 
-                                            fontSize: 'Student Name'.length > 25 ? '4cqw' : 'Student Name'.length > 15 ? '5cqw' : '6.3cqw',
-                                            maxWidth: '100%',
-                                            wordBreak: 'break-word',
-                                            paddingBottom: '0.2em'
-                                          }}
-                                        >
-                                          Student Name
-                                        </h1>
-                                    </div>
-                                    <div className="absolute inset-x-0 w-full text-center pointer-events-none z-10" style={{ top: `${serialY}%`, transform: 'translateY(-50%)' }}>
-                                        <p className={`font-bold tracking-widest leading-tight m-0 p-0 ${fontFamily}`} style={{ color: serialColor, fontSize: `${(serialFontSize / 794) * 100}cqw` }}>TCP-26-XXXXXX</p>
-                                    </div>
-                                </div>
-                            )}
-                         </div>
-                     )}
-                  </div>
-                  <div className="flex-1">
-                      <h4 className="font-bold text-lg mb-1">{lang === 'ar' ? 'الصورة الحالية' : 'Current Image'}</h4>
-                      <p className="text-sm text-text-dim mb-4">
-                        {lang === 'ar' ? 'ارفع صورة القالب (JPG / PNG / PDF).' : 'Upload the template picture (JPG / PNG / PDF).'}
-                      </p>
-                      <label className="btn-glass cursor-pointer px-5 py-2.5 rounded-lg font-bold text-sm transition-all inline-block mr-2">
-                          {lang === 'ar' ? 'رفع صورة/ملف' : 'Upload File'}
-                          <input type="file" accept="image/*,application/pdf" onChange={onSelectFile} className="hidden" />
-                      </label>
-                      <button 
-                        onClick={() => handleReset(activeTab)}
-                        className="text-slate-400 hover:text-rose-400 px-4 py-2 font-bold text-sm transition-all">
-                          {lang === 'ar' ? 'استعادة الافتراضي' : 'Reset Default'}
-                      </button>
-                  </div>
-               </div>
-           )}
-
-           {/* Styling & Coordinate Controls for Certificate */}
-           {activeTab === 'cert' && !imgSrc && (
-             <div className="bg-bg border border-border rounded-2xl p-6 mt-4 space-y-6">
-                <h4 className="font-bold border-b border-border pb-2">{lang === 'ar' ? 'نمط وإحداثيات النصوص' : 'Text Styling & Coordinates'}</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Font & Color selection */}
-                    <div className="space-y-4 border-r border-border pr-6">
-                        <div>
-                            <label className="block text-sm mb-2">{lang === 'ar' ? 'نوع الخط (Font Family)' : 'Font Family'}</label>
-                            <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} className="w-full bg-bg border border-border rounded-lg p-2 text-sm text-text focus:outline-none focus:border-border">
-                                <option value="font-sans">Sans-Serif (Modern)</option>
-                                <option value="font-serif">Serif (Classic)</option>
-                                <option value="font-mono">Monospace (Tech)</option>
-                                <option value="font-display">Display (Bold/Heavy)</option>
-                                <option value="font-montserrat">Montserrat</option>
-                            </select>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                            <label className="text-sm">{lang === 'ar' ? 'لون الاسم' : 'Name Color'}</label>
-                            <input type="color" value={nameColor} onChange={e => setNameColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer bg-transparent border-0" />
-                        </div>
-                        
-                        <div className="flex items-center justify-between border-t border-border/50 pt-4">
-                            <label className="text-sm">{lang === 'ar' ? 'لون الرقم المرجعي' : 'Serial Color'}</label>
-                            <input type="color" value={serialColor} onChange={e => setSerialColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer bg-transparent border-0" />
-                        </div>
-
-                        <div>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span>{lang === 'ar' ? 'حجم خط الرقم المرجعي' : 'Serial Font Size'}</span>
-                                <span className="font-bold text-text-dim">{serialFontSize}px</span>
-                            </div>
-                            <input type="range" min="8" max="48" value={serialFontSize} onChange={e => setSerialFontSize(Number(e.target.value))} className="w-full" />
-                        </div>
-                    </div>
-
-                    {/* Coordinates */}
-                    <div className="space-y-6">
-                        <div>
-                        <div className="flex justify-between text-sm mb-2">
-                            <span>{lang === 'ar' ? 'الارتفاع الرأسي للاسم' : 'Name Y Position'}</span>
-                            <span className="font-bold text-text-dim">{nameY}%</span>
-                        </div>
-                        <input type="range" min="10" max="98" value={nameY} onChange={e => setNameY(Number(e.target.value))} className="w-full" />
-                        </div>
-
-                        <div>
-                        <div className="flex justify-between text-sm mb-2">
-                            <span>{lang === 'ar' ? 'الارتفاع الرأسي للرقم التسلسلي' : 'Serial Number Y Position'}</span>
-                            <span className="font-bold text-text-dim">{serialY}%</span>
-                        </div>
-                        <input type="range" min="10" max="98" value={serialY} onChange={e => setSerialY(Number(e.target.value))} className="w-full" />
-                        </div>
-                    </div>
                 </div>
-             </div>
-           )}
+              )}
+            </div>
+          )}
 
-           {/* Cropper Workarea */}
-           {imgSrc && (
-               <div className="flex-1 flex flex-col items-center border border-dashed border-border bg-bg/50 rounded-2xl p-6 relative">
-                  <div className="absolute top-4 left-4 flex items-center gap-2 text-text-dim bg-border/50 px-3 py-1.5 rounded-lg text-xs font-bold font-mono z-10">
-                      <CropIcon className="w-4 h-4" /> {lang === 'ar' ? 'وضع القص والتعديل' : 'Cropping Mode'}
+          {/* Current image preview + upload */}
+          {!imgSrc && activeTab !== 'dash' && activeTab !== 'email' && activeTab !== 'courses' && (
+            <div className="card card-tight p-5 md:p-6 mb-6 flex flex-col md:flex-row items-stretch gap-5">
+              <div
+                className={`relative overflow-hidden grid place-items-center rounded-2xl w-full ${activeTab === 'cert' ? 'aspect-[1/1.414] max-w-[280px] mx-auto' : 'aspect-video md:w-1/2'}`}
+                style={{ background: 'var(--bg-alt)', border: '1px solid var(--border-hairline)', containerType: 'inline-size' }}
+              >
+                {(activeTab === 'cert' && !savedCert) ? (
+                  <span className="text-caption px-4 text-center">{isAr ? 'لا يوجد قالب مخصّص' : 'No custom template'}</span>
+                ) : (
+                  <div className="relative w-full h-full grid place-items-center">
+                    <img
+                      src={activeTab === 'logo' ? (savedLogo || '/tornix_logo.png') : activeTab === 'badge' ? (savedBadge || '/tcp_badge.png') : savedCert!}
+                      alt="Current"
+                      className="absolute inset-0 w-full h-full object-contain"
+                    />
+                    {activeTab === 'cert' && savedCert && (
+                      <div className="absolute inset-0 pointer-events-none">
+                        <div className="absolute inset-x-0 text-center z-10 flex flex-col items-center px-[10%]" style={{ top: `${nameY}%`, transform: 'translateY(-50%)' }}>
+                          <h1
+                            className={`font-bold leading-tight m-0 p-0 ${fontFamily}`}
+                            style={{
+                              color: nameColor,
+                              fontSize: 'Student Name'.length > 25 ? '4cqw' : 'Student Name'.length > 15 ? '5cqw' : '6.3cqw',
+                              maxWidth: '100%',
+                              wordBreak: 'break-word',
+                              paddingBottom: '0.2em',
+                            }}
+                          >
+                            Student Name
+                          </h1>
+                        </div>
+                        <div className="absolute inset-x-0 text-center pointer-events-none z-10" style={{ top: `${serialY}%`, transform: 'translateY(-50%)' }}>
+                          <p
+                            className={`font-bold tracking-widest leading-tight m-0 p-0 ${fontFamily}`}
+                            style={{ color: serialColor, fontSize: `${(serialFontSize / 794) * 100}cqw` }}
+                          >
+                            TCP-26-XXXXXX
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1 flex items-center justify-center w-full min-h-[300px] overflow-hidden mt-8 mb-6">
-                      <ReactCrop
-                        crop={crop}
-                        onChange={(_, percentCrop) => setCrop(percentCrop)}
-                        onComplete={(c) => setCompletedCrop(c)}
-                        className="rounded-lg shadow-sm outline-none max-h-[50vh]"
-                      >
-                        <img
-                          ref={imgRef}
-                          alt="Crop me"
-                          src={imgSrc}
-                          className="max-w-full max-h-full object-contain mx-auto"
-                          onLoad={onImageLoad}
-                        />
-                      </ReactCrop>
-                  </div>
-                  
-                  <div className="w-full flex gap-4 mt-auto">
-                      <button 
-                        onClick={() => setImgSrc('')}
-                        className="flex-1 py-4 bg-bg border border-border rounded-xl font-bold text-text-dim hover:bg-border/50 transition-all"
-                      >
-                         {lang === 'ar' ? 'إلغاء الأمر' : 'Cancel'}
-                      </button>
-                      <button 
-                        onClick={handleSaveCrop}
-                        disabled={isSaving}
-                        className="flex-1 py-4 btn-glass rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                      >
-                         <CheckCircle className={`w-5 h-5 ${isSaving ? 'animate-spin' : ''}`} /> {lang === 'ar' ? (isSaving ? 'جاري الحفظ...' : 'قص وحفظ كافتراضي') : (isSaving ? 'Saving...' : 'Crop & Save Default')}
-                      </button>
-                  </div>
-               </div>
-           )}
-
-           {activeTab === 'email' && (
-             <div className="bg-bg border border-border rounded-2xl p-6 space-y-6">
-                <div className="mb-4 text-sm text-text-dim">
-                  {lang === 'ar' ? 'قم بإعداد بيانات الربط لإرسال الإشعارات والشهادات عبر البريد. يمكنك استخدام EmailJS والآن أيضاً Resend.' : 'Configure integration credentials to send email notifications. You can use EmailJS or Resend.'}
-                </div>
-                
-                <h4 className="font-bold border-b border-border pb-2 text-primary">{lang === 'ar' ? 'إعدادات Resend API' : 'Resend API Settings'}</h4>
-                <div>
-                   <label className="block text-sm mb-2">{lang === 'ar' ? 'مفتاح ريسند (Resend Key)' : 'Resend API Key'}</label>
-                   <input type="text" value={resendKey} onChange={e => setResendKey(e.target.value)} className="w-full bg-bg border border-border rounded-lg p-3 text-sm text-text focus:outline-none focus:border-primary" placeholder="re_..." />
-                </div>
-                
-                <div className="mt-4">
-                   <label className="block text-sm mb-2">{lang === 'ar' ? 'بريد المرسل (Resend From Email)' : 'Resend From Email'}</label>
-                   <input type="email" value={resendFromEmail} onChange={e => setResendFromEmail(e.target.value)} className="w-full bg-bg border border-border rounded-lg p-3 text-sm text-text focus:outline-none focus:border-primary" placeholder="onboarding@resend.dev" />
-                   <p className="text-xs text-text-dim mt-1">{lang === 'ar' ? 'يجب أن يكون النطاق موثقاً في حسابك، أو استخدم onboarding@resend.dev للإرسال لبريدك الموثق فقط.' : 'Must be verified on Resend, or use onboarding@resend.dev to send to yourself only.'}</p>
-                </div>
-
-                <h4 className="font-bold border-b border-border pb-2 mt-8 text-primary">{lang === 'ar' ? 'إعدادات EmailJS' : 'EmailJS Settings'}</h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm mb-2">{lang === 'ar' ? 'معرف الخدمة (Service ID)' : 'Service ID'}</label>
-                    <input type="text" value={emailServiceId} onChange={e => setEmailServiceId(e.target.value)} className="w-full bg-bg border border-border rounded-lg p-3 text-sm text-text focus:outline-none focus:border-border" placeholder="service_..." />
-                  </div>
-                  <div>
-                    <label className="block text-sm mb-2">{lang === 'ar' ? 'معرف القالب (Template ID)' : 'Template ID'}</label>
-                    <input type="text" value={emailTemplateId} onChange={e => setEmailTemplateId(e.target.value)} className="w-full bg-bg border border-border rounded-lg p-3 text-sm text-text focus:outline-none focus:border-border" placeholder="template_..." />
-                  </div>
-                  <div>
-                    <label className="block text-sm mb-2">{lang === 'ar' ? 'المفتاح العام (Public Key)' : 'Public Key'}</label>
-                    <input type="text" value={emailPublicKey} onChange={e => setEmailPublicKey(e.target.value)} className="w-full bg-bg border border-border rounded-lg p-3 text-sm text-text focus:outline-none focus:border-border" placeholder="..." />
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-border flex justify-end">
-                  <button 
-                    onClick={saveEmailSettings}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${emailSaveSuccess ? 'bg-primary text-bg' : 'btn-glass'}`}
-                  >
-                     {emailSaveSuccess ? <Check className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
-                     {lang === 'ar' ? (emailSaveSuccess ? 'تم الحفظ بنجاح' : 'حفظ الإعدادات') : (emailSaveSuccess ? 'Saved successfully' : 'Save Settings')}
+                )}
+              </div>
+              <div className="flex-1 flex flex-col justify-center">
+                <span className="text-label">{isAr ? 'الصورة الحالية' : 'Current image'}</span>
+                <h4 className="text-h4 mt-1 mb-1.5" style={{ color: 'var(--text-heading)' }}>
+                  {activeTab === 'logo' && (isAr ? 'الشعار الرئيسي' : 'Main logo')}
+                  {activeTab === 'badge' && (isAr ? 'شارة الاعتماد' : 'Accreditation badge')}
+                  {activeTab === 'cert' && (isAr ? 'قالب الشهادة' : 'Certificate template')}
+                </h4>
+                <p className="text-body-m mb-4" style={{ color: 'var(--text-muted)' }}>
+                  {isAr ? 'ادعم JPG أو PNG أو PDF.' : 'JPG, PNG, or PDF supported.'}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="btn btn-primary btn-md cursor-pointer">
+                    {isAr ? 'رفع ملف' : 'Upload file'}
+                    <input type="file" accept="image/*,application/pdf" onChange={onSelectFile} className="hidden" />
+                  </label>
+                  <button onClick={() => handleReset(activeTab as 'logo' | 'badge' | 'cert')} className="btn btn-text btn-md">
+                    {isAr ? 'استعادة الافتراضي' : 'Reset default'}
                   </button>
                 </div>
-             </div>
-           )}
+              </div>
+            </div>
+          )}
+
+          {/* Certificate styling controls */}
+          {activeTab === 'cert' && !imgSrc && (
+            <div className="card card-tight p-5 md:p-6">
+              <span className="text-label">{isAr ? 'نمط النصوص والإحداثيات' : 'Text styling & coordinates'}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-label mb-2">{isAr ? 'نوع الخط' : 'Font family'}</label>
+                    <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} className="input">
+                      <option value="font-sans">Plex Sans (Default)</option>
+                      <option value="font-serif">Serif</option>
+                      <option value="font-mono">Monospace</option>
+                      <option value="font-display">Display</option>
+                      <option value="font-montserrat">Montserrat</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <label className="text-body-m" style={{ color: 'var(--text-heading)' }}>{isAr ? 'لون الاسم' : 'Name color'}</label>
+                    <input type="color" value={nameColor} onChange={e => setNameColor(e.target.value)} className="w-10 h-10 rounded-full cursor-pointer bg-transparent border-0" />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: 'var(--border-hairline)' }}>
+                    <label className="text-body-m" style={{ color: 'var(--text-heading)' }}>{isAr ? 'لون الرقم المرجعي' : 'Serial color'}</label>
+                    <input type="color" value={serialColor} onChange={e => setSerialColor(e.target.value)} className="w-10 h-10 rounded-full cursor-pointer bg-transparent border-0" />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-body-m mb-2">
+                      <span style={{ color: 'var(--text-heading)' }}>{isAr ? 'حجم خط الرقم' : 'Serial font size'}</span>
+                      <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{serialFontSize}px</span>
+                    </div>
+                    <input type="range" min="8" max="48" value={serialFontSize} onChange={e => setSerialFontSize(Number(e.target.value))} className="w-full" />
+                  </div>
+                </div>
+
+                <div className="space-y-5 md:pt-1">
+                  <div>
+                    <div className="flex justify-between text-body-m mb-2">
+                      <span style={{ color: 'var(--text-heading)' }}>{isAr ? 'موقع الاسم رأسياً' : 'Name Y position'}</span>
+                      <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{nameY}%</span>
+                    </div>
+                    <input type="range" min="10" max="98" value={nameY} onChange={e => setNameY(Number(e.target.value))} className="w-full" />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-body-m mb-2">
+                      <span style={{ color: 'var(--text-heading)' }}>{isAr ? 'موقع الرقم رأسياً' : 'Serial Y position'}</span>
+                      <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{serialY}%</span>
+                    </div>
+                    <input type="range" min="10" max="98" value={serialY} onChange={e => setSerialY(Number(e.target.value))} className="w-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cropper */}
+          {imgSrc && (
+            <div className="card card-tight flex-1 flex flex-col p-5 md:p-6 relative">
+              <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full" style={{ background: 'var(--primary-tint)', color: 'var(--primary-deep)' }}>
+                <CropIcon className="w-3.5 h-3.5" />
+                <span className="text-[0.75rem] font-semibold">{isAr ? 'وضع القصّ' : 'Cropping mode'}</span>
+              </div>
+              <div className="flex-1 grid place-items-center w-full min-h-[300px] overflow-hidden mt-10 mb-6">
+                <ReactCrop
+                  crop={crop}
+                  onChange={(_, percentCrop) => setCrop(percentCrop)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  className="rounded-xl outline-none max-h-[50vh]"
+                >
+                  <img
+                    ref={imgRef}
+                    alt="Crop"
+                    src={imgSrc}
+                    className="max-w-full max-h-full object-contain mx-auto"
+                    onLoad={onImageLoad}
+                  />
+                </ReactCrop>
+              </div>
+              <div className="w-full flex gap-2 mt-auto">
+                <button onClick={() => setImgSrc('')} className="btn btn-outline btn-md flex-1">
+                  {isAr ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button onClick={handleSaveCrop} disabled={isSaving} className="btn btn-primary btn-md flex-1">
+                  <CheckCircle className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
+                  {isSaving ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'قصّ وحفظ' : 'Crop & save')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'email' && (
+            <div className="space-y-6">
+              <p className="text-body-m" style={{ color: 'var(--text-muted)' }}>
+                {isAr
+                  ? 'مزوّد بريد لإرسال الإشعارات وشهادات الاعتماد. اختر Resend (الموصى به) أو EmailJS.'
+                  : 'Email provider for notifications and certificate delivery. Use Resend (recommended) or EmailJS.'}
+              </p>
+
+              <div className="card card-tight p-5 md:p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 rounded-full grid place-items-center" style={{ background: 'var(--primary-tint)', color: 'var(--primary-deep)' }}>
+                    <Mail className="w-3.5 h-3.5" />
+                  </div>
+                  <h4 className="text-h4" style={{ color: 'var(--text-heading)' }}>Resend</h4>
+                  <span className="badge badge-progress" style={{ marginInlineStart: 4 }}>{isAr ? 'موصى به' : 'Recommended'}</span>
+                </div>
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="text-label block mb-2">{isAr ? 'مفتاح API' : 'API Key'}</span>
+                    <input type="text" value={resendKey} onChange={e => setResendKey(e.target.value)} className="input" placeholder="re_..." />
+                  </label>
+                  <label className="block">
+                    <span className="text-label block mb-2">{isAr ? 'بريد المرسل' : 'Sender email'}</span>
+                    <input type="email" value={resendFromEmail} onChange={e => setResendFromEmail(e.target.value)} className="input" placeholder="onboarding@resend.dev" />
+                    <p className="text-[0.75rem] mt-2" style={{ color: 'var(--text-muted)' }}>
+                      {isAr
+                        ? 'يجب توثيق النطاق في Resend، أو استخدم onboarding@resend.dev لإرساله إلى بريدك المُوثَّق فقط.'
+                        : 'Domain must be verified on Resend, or use onboarding@resend.dev to email yourself only.'}
+                    </p>
+                  </label>
+                </div>
+              </div>
+
+              <div className="card card-tight p-5 md:p-6">
+                <h4 className="text-h4 mb-4" style={{ color: 'var(--text-heading)' }}>EmailJS</h4>
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="text-label block mb-2">{isAr ? 'معرف الخدمة' : 'Service ID'}</span>
+                    <input type="text" value={emailServiceId} onChange={e => setEmailServiceId(e.target.value)} className="input" placeholder="service_..." />
+                  </label>
+                  <label className="block">
+                    <span className="text-label block mb-2">{isAr ? 'معرف القالب' : 'Template ID'}</span>
+                    <input type="text" value={emailTemplateId} onChange={e => setEmailTemplateId(e.target.value)} className="input" placeholder="template_..." />
+                  </label>
+                  <label className="block">
+                    <span className="text-label block mb-2">{isAr ? 'المفتاح العام' : 'Public key'}</span>
+                    <input type="text" value={emailPublicKey} onChange={e => setEmailPublicKey(e.target.value)} className="input" placeholder="..." />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={saveEmailSettings}
+                  className={`btn ${emailSaveSuccess ? 'btn-secondary' : 'btn-primary'} btn-md`}
+                >
+                  {emailSaveSuccess ? <Check className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                  {emailSaveSuccess
+                    ? (isAr ? 'تم الحفظ' : 'Saved')
+                    : (isAr ? 'حفظ الإعدادات' : 'Save settings')}
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

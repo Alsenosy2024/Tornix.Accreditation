@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, Play, Camera, Award, Sparkles, X } from 'lucide-react';
+import { ArrowRight, X, Sparkles, BookOpen, ShieldCheck, Award } from 'lucide-react';
 
 interface OnboardingProps {
   lang: 'ar' | 'en';
@@ -9,101 +9,129 @@ interface OnboardingProps {
 
 export const Onboarding: React.FC<OnboardingProps> = ({ lang, onComplete }) => {
   const [step, setStep] = useState(0);
+  const isAr = lang === 'ar';
 
   const steps = [
     {
-      title: lang === 'ar' ? 'مرحباً بك في Tornix' : 'Welcome to Tornix',
-      description: lang === 'ar' 
-        ? 'منصة تعليمية ذكية تهدف لرفع كفاءتك المهنية باستخدام أحدث تقنيات الذكاء الاصطناعي.' 
-        : 'A smart educational platform aiming to boost your professional skills using latest AI technologies.',
-      icon: <Sparkles className="w-12 h-12 text-primary" />,
-      color: 'bg-primary/10'
+      eyebrow: isAr ? 'الخطوة ١ من ٤' : 'Step 1 of 4',
+      title: isAr ? 'مرحباً بك في تورنكس' : 'Welcome to Tornix',
+      body: isAr
+        ? 'مركز الاعتماد المهني المخصص لمديري المشاريع — تقييم منضبط، شهادة تُحترم في السوق.'
+        : 'A professional accreditation center for project managers — a disciplined assessment and a credential the market respects.',
+      Icon: Sparkles,
     },
     {
-      title: lang === 'ar' ? 'تعلم بذكاء' : 'Learn Smarter',
-      description: lang === 'ar' 
-        ? 'شاهد الكورسات المقسمة تلقائياً، واستخدم المساعد الذكي لتلخيص الأفكار المعقدة في ثوانٍ.' 
-        : 'Watch auto-segmented courses and use the AI assistant to summarize complex ideas in seconds.',
-      icon: <Play className="w-12 h-12 text-indigo-500" />,
-      color: 'bg-indigo-500/10'
+      eyebrow: isAr ? 'الخطوة ٢ من ٤' : 'Step 2 of 4',
+      title: isAr ? 'تعلّم بدقة' : 'Learn with rigor',
+      body: isAr
+        ? 'محتوى تعليمي مُقسَّم تلقائياً إلى فصول، ومساعد ذكي يلخّص الأفكار المعقّدة عند الطلب.'
+        : 'Auto-segmented chapters paired with an AI assistant that distills the complex parts on demand.',
+      Icon: BookOpen,
     },
     {
-      title: lang === 'ar' ? 'نظام اختبارات آمن' : 'Secure Exam System',
-      description: lang === 'ar' 
-        ? 'نستخدم الذكاء الاصطناعي لمراقبة النزاهة وضمان صحة الاختبار للحصول على شهادة معتمدة دولياً.' 
-        : 'We use AI to monitor integrity and ensure exam validity for internationally recognized certifications.',
-      icon: <Camera className="w-12 h-12 text-rose-500" />,
-      color: 'bg-rose-500/10'
+      eyebrow: isAr ? 'الخطوة ٣ من ٤' : 'Step 3 of 4',
+      title: isAr ? 'بيئة اختبار آمنة' : 'A trustworthy exam',
+      body: isAr
+        ? 'نراقب نزاهة الجلسة بأدوات مدعومة بالذكاء الاصطناعي حتى تكون الشهادة تستحقّ ما تحمل من اسم.'
+        : 'We watch session integrity with AI tooling so the certificate is worth the name on it.',
+      Icon: ShieldCheck,
     },
     {
-      title: lang === 'ar' ? 'احصل على شهادتك' : 'Get Certified',
-      description: lang === 'ar' 
-        ? 'بمجرد النجاح، يمكنك تحميل شهادتك بدقة عالية ومشاركتها مباشرة في ملفك المهني.' 
-        : 'Once successful, download your high-res certificate and share it directly to your professional profile.',
-      icon: <Award className="w-12 h-12 text-amber-500" />,
-      color: 'bg-amber-500/10'
-    }
+      eyebrow: isAr ? 'الخطوة ٤ من ٤' : 'Step 4 of 4',
+      title: isAr ? 'احصل على اعتمادك' : 'Earn your credential',
+      body: isAr
+        ? 'بعد النجاح، نُصدر شهادتك بدقة عالية وجاهزة للمشاركة على ملفك المهني مباشرة.'
+        : 'On success, we issue a high-resolution certificate ready to share to your professional profile.',
+      Icon: Award,
+    },
   ];
 
   const next = () => {
-    if (step < steps.length - 1) {
-      setStep(step + 1);
-    } else {
-      onComplete();
-    }
+    if (step < steps.length - 1) setStep(step + 1);
+    else onComplete();
   };
 
+  const current = steps[step];
+  const Icon = current.Icon;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-bg/80 backdrop-blur-xl">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-card rounded-[2.5rem] shadow-2xl border border-border overflow-hidden relative"
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[rgba(15,23,42,0.45)]"
+      dir={isAr ? 'rtl' : 'ltr'}
+      onClick={onComplete}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md card overflow-hidden"
+        style={{ borderRadius: 20 }}
       >
-        <button 
+        <button
           onClick={onComplete}
-          className="absolute top-6 right-6 p-2 rounded-full hover:bg-border/50 text-text-dim transition-all z-10"
+          aria-label={isAr ? 'تجاوز' : 'Skip'}
+          className={`absolute top-4 ${isAr ? 'left-4' : 'right-4'} w-9 h-9 rounded-full grid place-items-center text-[color:var(--text-muted)] hover:bg-[color:var(--border)] transition-colors`}
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        <div className="p-10 flex flex-col items-center text-center">
+        <div className="px-8 pt-12 pb-8">
+          {/* Logo halo — single decorative flourish */}
+          <div className="logo-halo mx-auto mb-8 w-20 h-20 grid place-items-center">
+            <img src="/logo.png" alt="" className="w-16 h-16 object-contain" />
+          </div>
+
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="flex flex-col items-center"
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="text-center"
             >
-              <div className={`p-6 rounded-3xl ${steps[step].color} mb-8`}>
-                {steps[step].icon}
+              <div className="inline-flex items-center gap-2 mb-5 px-3 py-1 rounded-full bg-[color:var(--primary-tint)] text-[color:var(--primary-deep)]">
+                <Icon className="w-3.5 h-3.5" />
+                <span className="text-[0.75rem] font-semibold">{current.eyebrow}</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4 text-text">{steps[step].title}</h2>
-              <p className="text-text-dim leading-relaxed mb-10 min-h-[80px]">
-                {steps[step].description}
+              <h2 className="text-h2 text-[color:var(--text-heading)] mb-3">{current.title}</h2>
+              <p className="text-body-m text-[color:var(--text-dim)] leading-relaxed mx-auto max-w-sm">
+                {current.body}
               </p>
             </motion.div>
           </AnimatePresence>
 
-          <div className="flex gap-2 mb-10">
+          {/* Step rail */}
+          <div className="flex justify-center gap-1.5 mt-10 mb-8">
             {steps.map((_, i) => (
-              <div 
-                key={i} 
-                className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-8 bg-primary' : 'w-2 bg-border'}`} 
+              <div
+                key={i}
+                className="h-1 rounded-full transition-all duration-500 ease-out"
+                style={{
+                  width: i === step ? 28 : 8,
+                  background: i <= step ? 'var(--primary)' : 'var(--border)',
+                }}
               />
             ))}
           </div>
 
-          <button 
-            onClick={next}
-            className="w-full py-4 bg-primary text-white rounded-2xl font-bold flex items-center justify-center gap-2 group transition-all hover:shadow-lg hover:shadow-primary/20 active:scale-95"
-          >
-            {step === steps.length - 1 
-              ? (lang === 'ar' ? 'ابدأ رحلتك الآن' : 'Start Your Journey')
-              : (lang === 'ar' ? 'التالي' : 'Next Step')}
-            <ChevronRight className={`w-5 h-5 transition-transform ${lang === 'ar' ? 'rotate-180 group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
-          </button>
+          <div className="flex items-center gap-3">
+            {step > 0 && (
+              <button
+                onClick={() => setStep(step - 1)}
+                className="btn btn-ghost btn-md"
+              >
+                {isAr ? 'السابق' : 'Back'}
+              </button>
+            )}
+            <button onClick={next} className="btn btn-primary btn-md flex-1">
+              {step === steps.length - 1
+                ? (isAr ? 'ابدأ التقييم' : 'Begin assessment')
+                : (isAr ? 'التالي' : 'Continue')}
+              <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

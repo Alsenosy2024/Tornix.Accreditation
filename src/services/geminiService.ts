@@ -1,6 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let _ai: GoogleGenAI | null = null;
+const getAi = () => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("Missing GEMINI_API_KEY — set it in .env.local to enable AI features.");
+  }
+  if (!_ai) _ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  return _ai;
+};
 
 export interface GeneratedQuestion {
   id: number;
@@ -46,7 +53,7 @@ export async function generateQuizQuestions(language: 'ar' | 'en' = 'ar'): Promi
   The output MUST be a JSON array.`;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
