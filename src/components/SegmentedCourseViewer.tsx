@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer, useState } from 'react';
+import Vimeo from '@vimeo/player';
 import { X, Lock, Sparkles, FileText } from 'lucide-react';
 import {
   fetchSegmentedCourse, fetchMyProgress,
@@ -22,6 +23,11 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [state, dispatch] = useReducer(reducer, initialState);
   const [bottomTab, setBottomTab] = useState<'overview' | 'transcript' | 'resources'>('overview');
+
+  const introRef = React.useRef<HTMLIFrameElement | null>(null);
+  const contentRef = React.useRef<HTMLIFrameElement | null>(null);
+  const outroRef = React.useRef<HTMLIFrameElement | null>(null);
+  const playersRef = React.useRef<{ intro?: Vimeo; content?: Vimeo; outro?: Vimeo }>({});
 
   useEffect(() => {
     let alive = true;
@@ -48,6 +54,52 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
     })();
     return () => { alive = false; };
   }, [courseSlug]);
+
+  // Effect: rebuild all three players when the *segment* changes
+  const currentSegId = segments[state.currentSegmentNum - 1]?.id;
+  React.useEffect(() => {
+    const currentSeg = segments[state.currentSegmentNum - 1];
+    if (!currentSeg) return;
+    const map = { intro: introRef, content: contentRef, outro: outroRef } as const;
+    const ids = {
+      intro: currentSeg.vimeo.introId,
+      content: currentSeg.vimeo.contentId,
+      outro: currentSeg.vimeo.outroId,
+    };
+    const players: typeof playersRef.current = {};
+
+    for (const kind of ['intro', 'content', 'outro'] as const) {
+      const iframe = map[kind].current;
+      if (!iframe || !ids[kind]) continue;
+      iframe.src = `https://player.vimeo.com/video/${ids[kind]}?autoplay=0&controls=1&dnt=1`;
+      const p = new Vimeo(iframe);
+      p.on('play',  () => dispatch({ type: 'CLIP_PLAYING' }));
+      p.on('pause', () => dispatch({ type: 'CLIP_PAUSED' }));
+      p.on('ended', () => dispatch({ type: 'CLIP_ENDED', kind }));
+      players[kind] = p;
+    }
+    playersRef.current = players;
+
+    return () => {
+      (['intro', 'content', 'outro'] as const).forEach(k => players[k]?.destroy().catch(() => {}));
+      playersRef.current = {};
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSegId]);
+
+  // Effect: when currentClipKind changes, pause the others and play the active one
+  React.useEffect(() => {
+    const players = playersRef.current;
+    (['intro', 'content', 'outro'] as const).forEach(k => {
+      const p = players[k];
+      if (!p) return;
+      if (k === state.currentClipKind) {
+        p.play().catch(() => {/* autoplay blocked — user must click play */});
+      } else {
+        p.pause().catch(() => {});
+      }
+    });
+  }, [state.currentClipKind]);
 
   if (loadErr) {
     return (
@@ -99,13 +151,29 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
           <div className="flex-1 min-w-0">
             <div className="rounded-2xl overflow-hidden mb-5 aspect-video relative"
                  style={{ background: '#0F172A', border: '1px solid var(--border-hairline)' }}>
-              {currentSeg ? (
-                <div className="w-full h-full grid place-items-center text-white text-body-m">
-                  Segment {currentSeg.num} • {state.currentClipKind}
-                </div>
-              ) : (
-                <div className="w-full h-full grid place-items-center text-white">…</div>
-              )}
+              <div className="w-full h-full relative">
+                {(['intro', 'content', 'outro'] as const).map(kind => {
+                  const ref = kind === 'intro' ? introRef : kind === 'content' ? contentRef : outroRef;
+                  const active = state.currentClipKind === kind;
+                  const vid = currentSeg?.vimeo[kind === 'intro' ? 'introId' : kind === 'content' ? 'contentId' : 'outroId'];
+                  return (
+                    <iframe
+                      key={`${currentSeg?.id}-${kind}`}
+                      ref={ref}
+                      className="absolute inset-0 w-full h-full"
+                      style={{ display: active ? 'block' : 'none' }}
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      title={`${currentSeg?.slug ?? ''}-${kind}`}
+                      src={vid ? undefined : 'about:blank'}
+                    />
+                  );
+                })}
+                {!currentSeg?.vimeo.contentId && (
+                  <div className="absolute inset-0 grid place-items-center text-white">
+                    {isAr ? 'غير متاح بعد' : 'Not available yet'}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Tabs */}
