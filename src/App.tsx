@@ -1883,7 +1883,13 @@ export default function App() {
       </footer>
 
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} lang={lang} />}
-      {showCourse && <CourseViewer onClose={() => setShowCourse(false)} lang={lang} />}
+      {showCourse && (
+        <CourseViewer
+          onClose={() => setShowCourse(false)}
+          lang={lang}
+          onOpenSegmented={() => { setShowCourse(false); setShowSegmentedCourse(true); }}
+        />
+      )}
       {showSegmentedCourse && (
         <SegmentedCourseViewer
           lang={lang}
