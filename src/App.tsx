@@ -607,12 +607,31 @@ export default function App() {
   }, [user]);
 
   // Auto-resume: if the signed-in user already has a passing assessment,
-  // jump straight to the result/certificate screen on first load (they can
-  // still hit "Restart assessment" if they want to retake).
+  // jump straight to the result/certificate screen on first load.
+  // Cached in sessionStorage so subsequent reloads in the same tab are instant.
   const priorPassCheckedRef = useRef(false);
+  const [restoringPriorPass, setRestoringPriorPass] = useState(false);
+
+  // Synchronous cache rehydration — runs once on mount, before any paint
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem('tornix:priorPass');
+      if (!cached) return;
+      const pass = JSON.parse(cached);
+      if (!pass || typeof pass.score !== 'number') return;
+      setScore(pass.score);
+      if (pass.userName) setUserName(pass.userName);
+      if (pass.userPhoto) setUserPhoto(pass.userPhoto);
+      setStep('result');
+      priorPassCheckedRef.current = true;
+    } catch {/* ignore parse / storage errors */}
+  }, []);
+
+  // Network check on first load after sign-in — refreshes the cached pass info
   useEffect(() => {
     if (priorPassCheckedRef.current || !user?.email) return;
     priorPassCheckedRef.current = true;
+    setRestoringPriorPass(true);
     listAssessments()
       .then(rows => {
         const mine = (rows || []).filter(r =>
@@ -622,13 +641,20 @@ export default function App() {
           Number(r.score) >= 60 && (r.status === 'Passed' || r.status === 'completed')
         );
         if (passed) {
-          setScore(Number(passed.score));
-          if (passed.userName) setUserName(passed.userName);
-          if (passed.userPhoto) setUserPhoto(passed.userPhoto);
+          const pass = {
+            score: Number(passed.score),
+            userName: passed.userName || null,
+            userPhoto: passed.userPhoto || null,
+          };
+          try { sessionStorage.setItem('tornix:priorPass', JSON.stringify(pass)); } catch {}
+          setScore(pass.score);
+          if (pass.userName) setUserName(pass.userName);
+          if (pass.userPhoto) setUserPhoto(pass.userPhoto);
           setStep('result');
         }
       })
-      .catch(() => {/* network/RLS issue → fall through to normal welcome flow */});
+      .catch(() => {/* network/RLS issue → fall through to normal welcome flow */})
+      .finally(() => setRestoringPriorPass(false));
   }, [user?.email]);
 
   // Admin Hotkey
@@ -1024,6 +1050,10 @@ export default function App() {
   };
 
   const resetQuiz = () => {
+    // Clear the cached pass so the auto-resume doesn't bounce the user
+    // straight back to the result screen on reload.
+    try { sessionStorage.removeItem('tornix:priorPass'); } catch {}
+    priorPassCheckedRef.current = true;  // skip re-check this session
     setStep('welcome');
     setCurrentIndex(0);
     setUserAnswers([]);
@@ -1289,7 +1319,27 @@ export default function App() {
 
           <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col pb-10">
             <AnimatePresence mode="wait">
-              {step === 'welcome' && (
+              {restoringPriorPass && step === 'welcome' ? (
+                <motion.div
+                  key="restoring"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="max-w-md w-full mx-auto py-20 md:py-28"
+                >
+                  <div className="card p-8 text-center" style={{ borderRadius: 20 }}>
+                    <span className="inline-block w-8 h-8 rounded-full border-2 animate-spin mb-4"
+                          style={{ borderColor: 'var(--border-hairline)', borderTopColor: 'var(--primary)' }} />
+                    <h3 className="text-h3 mb-1" style={{ color: 'var(--text-heading)' }}>
+                      {isAr ? 'جاري استعادة شهادتك…' : 'Restoring your certificate…'}
+                    </h3>
+                    <p className="text-body-m" style={{ color: 'var(--text-muted)' }}>
+                      {isAr ? 'لحظات من فضلك.' : 'One moment please.'}
+                    </p>
+                  </div>
+                </motion.div>
+              ) : step === 'welcome' && (
                 <motion.div
                   key="welcome"
                   initial={{ opacity: 0, y: 12 }}
