@@ -36,6 +36,16 @@
   to   = "/.netlify/functions/assessments"
   status = 200
 
+[[redirects]]
+  from = "/api/segmented-courses"
+  to = "/.netlify/functions/segmented-courses"
+  status = 200
+
+[[redirects]]
+  from = "/api/segmented-courses/:slug"
+  to = "/.netlify/functions/segmented-courses?slug=:slug"
+  status = 200
+
 # SPA fallback
 [[redirects]]
   from = "/*"
