@@ -101,6 +101,21 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
     });
   }, [state.currentClipKind]);
 
+  // Tick the up-next countdown once per second while in outro and not cancelled
+  React.useEffect(() => {
+    if (!state.upNext || state.upNext.cancelled) return;
+    if (state.upNext.countdownSec <= 0) return;
+    const t = setTimeout(() => dispatch({ type: 'UP_NEXT_TICK' }), 1000);
+    return () => clearTimeout(t);
+  }, [state.upNext?.countdownSec, state.upNext?.cancelled]);
+
+  // When countdown reaches 0 and not cancelled, trigger outro CLIP_ENDED so the reducer advances
+  React.useEffect(() => {
+    if (state.upNext?.countdownSec === 0 && !state.upNext.cancelled) {
+      dispatch({ type: 'CLIP_ENDED', kind: 'outro' });
+    }
+  }, [state.upNext?.countdownSec, state.upNext?.cancelled]);
+
   if (loadErr) {
     return (
       <div className="fixed inset-0 z-50 grid place-items-center" style={{ background: 'var(--bg)' }}>
@@ -171,6 +186,73 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
                 {!currentSeg?.vimeo.contentId && (
                   <div className="absolute inset-0 grid place-items-center text-white">
                     {isAr ? 'غير متاح بعد' : 'Not available yet'}
+                  </div>
+                )}
+
+                {/* Task 18 — Skip-intro overlay */}
+                {state.currentClipKind === 'intro' && currentSeg?.vimeo.introId && (
+                  <button
+                    onClick={() => {
+                      const p = playersRef.current.intro;
+                      const introDur = currentSeg.introDurationSec ?? 5;
+                      p?.setCurrentTime(introDur).catch(() => {});
+                      dispatch({ type: 'SKIP_INTRO' });
+                    }}
+                    className="absolute top-3 z-10 px-3 py-1.5 rounded-full text-white text-caption font-semibold"
+                    style={{ [isAr ? 'right' : 'left']: '12px', background: 'rgba(0,0,0,0.55)' }}>
+                    {isAr ? 'تخطي المقدمة ›' : 'Skip intro ›'}
+                  </button>
+                )}
+
+                {/* Task 19 — Up-next countdown card */}
+                {state.currentClipKind === 'outro' && currentSeg && state.upNext && (
+                  <div className="absolute bottom-4 z-10 max-w-[280px] p-3 rounded-xl"
+                       style={{ [isAr ? 'right' : 'left']: '12px', background: 'rgba(15,23,42,0.85)', color: 'white' }}>
+                    <div className="text-caption opacity-80 mb-1">
+                      {isAr ? 'التالي' : 'Up next'}
+                    </div>
+                    <div className="text-h4 mb-2 leading-tight">
+                      {isAr ? currentSeg.nextTitleAr : currentSeg.nextTitleEn}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!state.upNext.cancelled ? (
+                        <>
+                          <span
+                            className="inline-block w-7 h-7 rounded-full grid place-items-center text-caption font-bold"
+                            style={{
+                              background: `conic-gradient(var(--primary) ${(1 - state.upNext.countdownSec / 5) * 360}deg, rgba(255,255,255,0.2) 0)`,
+                            }}
+                          >
+                            {state.upNext.countdownSec}
+                          </span>
+                          <button onClick={() => dispatch({ type: 'UP_NEXT_CANCEL' })}
+                                  className="text-caption underline">
+                            {isAr ? 'إلغاء' : 'Cancel'}
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => dispatch({ type: 'CLIP_ENDED', kind: 'outro' })}
+                                className="btn btn-primary btn-sm">
+                          {isAr ? 'التالي ›' : 'Next ›'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Task 20 — Course-complete overlay */}
+                {state.playerState === 'course_complete' && (
+                  <div className="absolute inset-0 z-20 grid place-items-center" style={{ background: 'rgba(15,23,42,0.85)' }}>
+                    <div className="card p-7 text-center max-w-md mx-4">
+                      <Sparkles className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--primary)' }} />
+                      <h3 className="text-h2 mb-2">{isAr ? 'أنهيت جميع المقاطع' : 'You finished every segment'}</h3>
+                      <p className="text-body-m mb-5" style={{ color: 'var(--text-muted)' }}>
+                        {isAr ? 'جاهز للاختبار النهائي وللحصول على الاعتماد.' : 'Ready for the final exam and certificate.'}
+                      </p>
+                      <button className="btn btn-primary btn-md w-full" onClick={onStartExam}>
+                        {isAr ? 'ابدأ الاختبار النهائي' : 'Start final exam'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
