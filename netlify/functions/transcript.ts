@@ -2,10 +2,12 @@ import type { Handler } from '@netlify/functions';
 import { getSession } from '../lib/supabase';
 import whisperData from './transcript-data/whisper_segments.json';
 
-interface WhisperSegment {
-  id: number; start: number; end: number; text: string;
-}
-const WHISPER: { segments: WhisperSegment[] } = whisperData as any;
+interface WhisperSegment { start: number; end: number; text: string; }
+// whisper_segments.json is a top-level array. Accept either shape for safety.
+const RAW: unknown = whisperData;
+const WHISPER_SEGMENTS: WhisperSegment[] = Array.isArray(RAW)
+  ? (RAW as WhisperSegment[])
+  : ((RAW as { segments?: WhisperSegment[] })?.segments ?? []);
 
 // Populated from /home/karem/side projects/hyperframe/work/segments/manifest.json.
 // Keep in sync if the manifest changes.
@@ -49,12 +51,12 @@ export const handler: Handler = async (event) => {
   const range = SOURCE_RANGES[slug];
   if (!range) return { statusCode: 404, body: JSON.stringify({ error: 'unknown slug' }) };
 
-  const sentences = WHISPER.segments
+  const sentences = WHISPER_SEGMENTS
     .filter(s => s.end > range.start && s.start < range.end)
     .map(s => ({
       start: Math.max(0, s.start - range.start),
       end: Math.min(range.end - range.start, s.end - range.start),
-      text: s.text.trim(),
+      text: (s.text || '').trim(),
     }))
     .filter(s => s.text.length > 0);
 
