@@ -1,0 +1,43 @@
+[build]
+  command = "vite build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["netlify/lib/**"]
+
+# ---- API routes (keep paths the client already calls) ----
+[[redirects]]
+  from = "/api/send-email"
+  to   = "/.netlify/functions/send-email"
+  status = 200
+
+[[redirects]]
+  from = "/api/me"
+  to   = "/.netlify/functions/me"
+  status = 200
+
+[[redirects]]
+  from = "/api/settings/branding"
+  to   = "/.netlify/functions/settings-branding"
+  status = 200
+
+[[redirects]]
+  from = "/api/courses"
+  to   = "/.netlify/functions/courses"
+  status = 200
+
+[[redirects]]
+  from = "/api/assessments"
+  to   = "/.netlify/functions/assessments"
+  status = 200
+
+# SPA fallback
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200

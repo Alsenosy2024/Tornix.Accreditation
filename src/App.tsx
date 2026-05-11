@@ -33,9 +33,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { generateQuizQuestions, GeneratedQuestion } from './services/geminiService';
-import { doc, onSnapshot, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { db, auth, loginWithGoogle, logout, handleFirestoreError } from './firebase';
+import { fetchBranding, submitAssessment, loginWithGoogle, logout } from './api';
+import { useSession } from './useSession';
 import { 
   Radar, 
   RadarChart, 
@@ -450,8 +449,8 @@ export const useBranding = () => {
   const [logo, setLogo] = useState(localStorage.getItem('admin_logo') || "/tornix_logo.png");
   const [badge, setBadge] = useState(localStorage.getItem('admin_badge') || "/tcp_badge.png");
   const [certBg, setCertBg] = useState<string | null>(localStorage.getItem('admin_cert_bg'));
-  const [nameY, setNameY] = useState(Number(localStorage.getItem('admin_cert_name_y') || 33));
-  const [serialY, setSerialY] = useState(Number(localStorage.getItem('admin_cert_serial_y') || 90));
+  const [nameY, setNameY] = useState(Number(localStorage.getItem('admin_cert_name_y') || 37));
+  const [serialY, setSerialY] = useState(Number(localStorage.getItem('admin_cert_serial_y') || 96));
   
   const [fontFamily, setFontFamily] = useState(localStorage.getItem('admin_cert_font') || "font-montserrat");
   const [nameColor, setNameColor] = useState(localStorage.getItem('admin_cert_name_color') || "#0f172a");
@@ -464,8 +463,8 @@ export const useBranding = () => {
       setLogo(localStorage.getItem('admin_logo') || "/tornix_logo.png");
       setBadge(localStorage.getItem('admin_badge') || "/tcp_badge.png");
       setCertBg(localStorage.getItem('admin_cert_bg'));
-      setNameY(Number(localStorage.getItem('admin_cert_name_y') || 33));
-      setSerialY(Number(localStorage.getItem('admin_cert_serial_y') || 90));
+      setNameY(Number(localStorage.getItem('admin_cert_name_y') || 37));
+      setSerialY(Number(localStorage.getItem('admin_cert_serial_y') || 96));
       setFontFamily(localStorage.getItem('admin_cert_font') || "font-montserrat");
       setNameColor(localStorage.getItem('admin_cert_name_color') || "#0f172a");
       setSerialColor(localStorage.getItem('admin_cert_serial_color') || "#1e293b");
@@ -473,69 +472,47 @@ export const useBranding = () => {
     };
     window.addEventListener('branding-updated', updater);
 
-    // Sync from Firestore continuously
-    const unsub = onSnapshot(doc(db, 'settings', 'branding'), async (docSnap) => {
-       if (docSnap.exists()) {
-           const data = docSnap.data();
-           
-           const processField = async (key: string, val: any) => {
-               if (val && typeof val === 'object' && val.isChunked) {
-                   let fullString = '';
-                   for (let i = 0; i < val.chunks; i++) {
-                       const chunkSnap = await getDoc(doc(db, 'settings', `branding_${key}_${i}`));
-                       if (chunkSnap.exists()) {
-                           fullString += chunkSnap.data().data;
-                       }
-                   }
-                   return fullString;
-               }
-               return val;
-           };
-
-           const safeSetItem = (key: string, val: string) => {
-               try {
-                   localStorage.setItem(key, val);
-               } catch (err: any) {
-                   if (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-                       console.warn(`LocalStorage quota exceeded for ${key}, skipping persistence but keeping in memory.`);
-                   } else {
-                       throw err;
-                   }
-               }
-           };
-
-           if (data.logo) { 
-               const fullLogo = await processField('logo', data.logo);
-               safeSetItem('admin_logo', fullLogo); setLogo(fullLogo); 
-           }
-           if (data.badge) { 
-               const fullBadge = await processField('badge', data.badge);
-               safeSetItem('admin_badge', fullBadge); setBadge(fullBadge); 
-           }
-           if (data.certBg) { 
-               const fullCert = await processField('certBg', data.certBg);
-               safeSetItem('admin_cert_bg', fullCert); setCertBg(fullCert); 
-           }
-           
-           if (data.nameY !== undefined) { safeSetItem('admin_cert_name_y', data.nameY.toString()); setNameY(data.nameY); }
-           if (data.serialY !== undefined) { safeSetItem('admin_cert_serial_y', data.serialY.toString()); setSerialY(data.serialY); }
-           if (data.fontFamily) { safeSetItem('admin_cert_font', data.fontFamily); setFontFamily(data.fontFamily); }
-           if (data.nameColor) { safeSetItem('admin_cert_name_color', data.nameColor); setNameColor(data.nameColor); }
-           if (data.serialColor) { safeSetItem('admin_cert_serial_color', data.serialColor); setSerialColor(data.serialColor); }
-           if (data.serialFontSize) { safeSetItem('admin_cert_serial_size', data.serialFontSize.toString()); setSerialFontSize(data.serialFontSize); }
-           
-           if (data.emailServiceId) safeSetItem('admin_email_service_id', data.emailServiceId);
-           if (data.emailTemplateId) safeSetItem('admin_email_template_id', data.emailTemplateId);
-           if (data.emailPublicKey) safeSetItem('admin_email_public_key', data.emailPublicKey);
-       }
-    }, (err) => {
-       console.warn("Could not load branding from Firestore realtime", err);
-       handleFirestoreError(err, 'get', 'settings/branding');
-    });
+    // Sync branding from Postgres via the /api/settings/branding endpoint.
+    // Polled on mount + every 30s (replaces the old Firestore onSnapshot listener).
+    let cancelled = false;
+    const safeSetItem = (key: string, val: string) => {
+        try {
+            localStorage.setItem(key, val);
+        } catch (err: any) {
+            if (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+                console.warn(`LocalStorage quota exceeded for ${key}, skipping persistence but keeping in memory.`);
+            } else {
+                throw err;
+            }
+        }
+    };
+    const pullBranding = async () => {
+        try {
+            const data: any = await fetchBranding();
+            if (cancelled || !data) return;
+            if (data.logo)   { safeSetItem('admin_logo',  data.logo);   setLogo(data.logo);   }
+            if (data.badge)  { safeSetItem('admin_badge', data.badge);  setBadge(data.badge); }
+            if (data.certBg) { safeSetItem('admin_cert_bg', data.certBg); setCertBg(data.certBg); }
+            if (data.nameY !== undefined)         { safeSetItem('admin_cert_name_y', String(data.nameY)); setNameY(data.nameY); }
+            if (data.serialY !== undefined)       { safeSetItem('admin_cert_serial_y', String(data.serialY)); setSerialY(data.serialY); }
+            if (data.fontFamily)                  { safeSetItem('admin_cert_font', data.fontFamily); setFontFamily(data.fontFamily); }
+            if (data.nameColor)                   { safeSetItem('admin_cert_name_color', data.nameColor); setNameColor(data.nameColor); }
+            if (data.serialColor)                 { safeSetItem('admin_cert_serial_color', data.serialColor); setSerialColor(data.serialColor); }
+            if (data.serialFontSize)              { safeSetItem('admin_cert_serial_size', String(data.serialFontSize)); setSerialFontSize(data.serialFontSize); }
+            if (data.emailServiceId)              safeSetItem('admin_email_service_id', data.emailServiceId);
+            if (data.emailTemplateId)             safeSetItem('admin_email_template_id', data.emailTemplateId);
+            if (data.emailPublicKey)              safeSetItem('admin_email_public_key', data.emailPublicKey);
+        } catch (err) {
+            console.warn("Could not load branding from /api/settings/branding", err);
+        }
+    };
+    pullBranding();
+    const interval = setInterval(pullBranding, 30_000);
 
     return () => {
       window.removeEventListener('branding-updated', updater);
-      unsub();
+      cancelled = true;
+      clearInterval(interval);
     };
   }, []);
   return { logo, badge, certBg, nameY, serialY, fontFamily, nameColor, serialColor, serialFontSize };
@@ -586,8 +563,8 @@ export default function App() {
 
   const { logo: currentLogo, badge: currentBadge, certBg, nameY, serialY, fontFamily, nameColor, serialColor, serialFontSize } = useBranding();
   
-  // Auth state
-  const [user, authLoading] = useAuthState(auth);
+  // Auth state — replaces useAuthState(firebase auth) with our cookie/JWT session.
+  const [user, authLoading] = useSession();
   
   const [step, setStep] = useState<'welcome' | 'camera_check' | 'orientation' | 'quiz' | 'result' | 'terminated'>('welcome');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -621,8 +598,9 @@ export default function App() {
 
   useEffect(() => {
      if (user) {
-         setUserName(user.displayName || '');
+         setUserName(user.name || '');
          setUserEmail(user.email || '');
+         if (user.photo) setUserPhoto(user.photo);
      }
   }, [user]);
 
@@ -708,12 +686,9 @@ export default function App() {
 
   const handleRegistrationSubmit = async () => {
     if (!user) {
-        try {
-            await loginWithGoogle();
-        } catch(e) {
-            console.error(e);
-            return;
-        }
+        // loginWithGoogle navigates away to Google's OAuth screen and returns.
+        loginWithGoogle('/');
+        return;
     }
     setStep('camera_check');
   };
@@ -721,33 +696,26 @@ export default function App() {
   const saveAssessmentToCloud = async (finalScore: number, status: "completed" | "terminated") => {
     if (user) {
        try {
-           const assessmentId = `assess_${Date.now()}`;
-           
-           // Store basic answers directly in document, but limit size just in case
            const condensedAnswers = userAnswers.map(ua => ({
                questionId: ua.questionId,
                category: ua.category || '',
                timeSpent: ua.timeSpent,
                isCorrect: ua.isCorrect,
-               selectedId: ua.selectedId
+               selectedId: ua.selectedId,
            }));
 
-           await setDoc(doc(db, "users", user.uid, "assessments", assessmentId), {
-              userId: user.uid,
-              userEmail: user.email || userEmail,
-              userName: user.displayName || userName || "Student",
-              userPhoto: userPhoto || "",
-              score: finalScore,
-              integrityScore: integrityScore,
-              serialNumber: generateSerial(),
-              status: status,
-              answers: condensedAnswers,
-              questionsCount: questions.length,
-              createdAt: serverTimestamp()
+           await submitAssessment({
+               userName: user.name || userName || "Student",
+               userPhoto: userPhoto || undefined,
+               score: finalScore,
+               integrityScore,
+               serialNumber: generateSerial(),
+               status,
+               answers: condensedAnswers,
+               questionsCount: questions.length,
            });
        } catch(err) {
-           console.error("Failed to save assessment to Cloud", err);
-           handleFirestoreError(err, 'create', `users/${user.uid}/assessments`);
+           console.error("Failed to save assessment", err);
        }
     }
   };
@@ -1338,9 +1306,7 @@ export default function App() {
                             : 'We use your Google account to secure the session and issue the certificate.'}
                         </p>
                         <button
-                          onClick={async () => {
-                            try { await loginWithGoogle(); } catch (e) { console.error(e); }
-                          }}
+                          onClick={() => loginWithGoogle('/')}
                           className="btn btn-primary btn-lg w-full"
                         >
                           <User className="w-4 h-4" />
@@ -1426,13 +1392,13 @@ export default function App() {
               )}
 
               {step === 'orientation' && (
-                <OrientationScreen 
-                  lang={lang} 
+                <OrientationScreen
+                  lang={lang}
                   isLoading={isLoading}
                   agreedToRules={agreedToRules}
                   setAgreedToRules={setAgreedToRules}
                   onStart={handleStartExam}
-                  userEmail={userEmail}
+                  isAdmin={!!user?.isAdmin}
                   forceAdminPass={forceAdminPass}
                 />
               )}
@@ -1454,7 +1420,7 @@ export default function App() {
                         </span>
                         <span className="text-[0.75rem]" style={{ color: 'var(--text-muted)' }}>{currentQuestion.category}</span>
                       </div>
-                      {(userEmail === 'ahmed0ibrahim@gmail.com' || userEmail === 'ahmedzeroibrahim@gmail.com') && (
+                      {user?.isAdmin && (
                         <button onClick={forceAdminPass} className="btn btn-ghost btn-sm">
                           Admin pass
                         </button>
@@ -1926,13 +1892,20 @@ export default function App() {
           <div className="relative w-full h-full flex items-center justify-center bg-white overflow-hidden">
             <img crossOrigin="anonymous" src={certBg} className="absolute inset-0 w-full h-full object-contain" alt="Certificate Background" />
             <div className="absolute inset-x-0 w-full text-center z-10 flex flex-col items-center px-[10%]" style={{ top: `${nameY}%`, transform: 'translateY(-50%)' }}>
-               <h1 
-                 className={`font-bold text-slate-900 leading-tight m-0 ${fontFamily}`} 
-                 style={{ 
-                   color: nameColor, 
-                   fontSize: userName.length > 25 ? '4cqw' : userName.length > 15 ? '5cqw' : '6.3cqw',
+               <h1
+                 className={`font-bold text-slate-900 leading-tight m-0 ${fontFamily}`}
+                 style={{
+                   color: nameColor,
+                   fontSize: userName.length > 45 ? '2.4cqw'
+                            : userName.length > 35 ? '3cqw'
+                            : userName.length > 28 ? '3.6cqw'
+                            : userName.length > 22 ? '4.2cqw'
+                            : userName.length > 15 ? '5cqw'
+                            : '6.3cqw',
                    maxWidth: '100%',
-                   wordBreak: 'break-word',
+                   whiteSpace: 'nowrap',
+                   overflow: 'hidden',
+                   textOverflow: 'clip',
                    paddingBottom: '0.2em'
                  }}
                >
@@ -2162,7 +2135,7 @@ const CameraCheck = ({ lang, onVerified }: { lang: 'ar' | 'en', onVerified: (pho
   );
 };
 
-const OrientationScreen = ({ lang, isLoading, agreedToRules, setAgreedToRules, onStart, userEmail, forceAdminPass }: { lang: 'ar'|'en', isLoading: boolean, agreedToRules: boolean, setAgreedToRules: (a:boolean)=>void, onStart: ()=>void, userEmail: string | null, forceAdminPass: ()=>void }) => {
+const OrientationScreen = ({ lang, isLoading, agreedToRules, setAgreedToRules, onStart, isAdmin, forceAdminPass }: { lang: 'ar'|'en', isLoading: boolean, agreedToRules: boolean, setAgreedToRules: (a:boolean)=>void, onStart: ()=>void, isAdmin: boolean, forceAdminPass: ()=>void }) => {
   const isAr = lang === 'ar';
   const rules = [
     isAr
@@ -2273,7 +2246,7 @@ const OrientationScreen = ({ lang, isLoading, agreedToRules, setAgreedToRules, o
         </p>
       )}
 
-      {(userEmail === 'ahmed0ibrahim@gmail.com' || userEmail === 'ahmedzeroibrahim@gmail.com') && (
+      {isAdmin && (
         <button onClick={forceAdminPass} className="btn btn-ghost btn-sm w-full mt-3">
           {isAr ? 'تخطّي (مسؤول)' : 'Admin skip'}
         </button>

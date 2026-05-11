@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
-import { db } from '../firebase';
+import { listCourses } from '../api';
 import { PlayCircle, FileText, Sparkles, Loader2, X, Cpu, Zap, BarChart3, ShieldCheck, ShoppingCart, LayoutGrid, ArrowUpRight, ArrowUpLeft } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
@@ -172,10 +171,7 @@ export const CourseViewer: React.FC<CourseViewerProps> = ({ lang, onClose }) => 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const q = query(collection(db, 'courses'), orderBy('createdAt', 'desc'));
-        const snap = await getDocs(q);
-        const parsed: Course[] = [];
-        snap.forEach(d => parsed.push({ id: d.id, ...d.data() } as Course));
+        const parsed = (await listCourses()) as unknown as Course[];
         setCourses(parsed);
         if (parsed.length > 0) setActiveCourse(parsed[0]);
       } catch (err) {

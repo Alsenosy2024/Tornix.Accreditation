@@ -41,9 +41,7 @@ function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: numbe
   } as Crop;
 }
 
-import { doc, getDoc, setDoc, serverTimestamp, collectionGroup, getDocs } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
-import { db, storage, handleFirestoreError } from '../firebase';
+import { saveBranding, listAssessments } from '../api';
 
 import { CoursesAdmin } from './CoursesAdmin';
 
@@ -79,8 +77,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
   const [savedBadge, setSavedBadge] = useState<string | null>(localStorage.getItem('admin_badge'));
   const [savedCert, setSavedCert] = useState<string | null>(localStorage.getItem('admin_cert_bg'));
   
-  const [nameY, setNameY] = useState(Number(localStorage.getItem('admin_cert_name_y') || 33));
-  const [serialY, setSerialY] = useState(Number(localStorage.getItem('admin_cert_serial_y') || 90));
+  const [nameY, setNameY] = useState(Number(localStorage.getItem('admin_cert_name_y') || 37));
+  const [serialY, setSerialY] = useState(Number(localStorage.getItem('admin_cert_serial_y') || 96));
 
   const [fontFamily, setFontFamily] = useState(localStorage.getItem('admin_cert_font') || "font-montserrat");
   const [nameColor, setNameColor] = useState(localStorage.getItem('admin_cert_name_color') || "#0f172a");
@@ -89,21 +87,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
 
   const pushToFirestore = async (updates: any) => {
     try {
-        const finalUpdates = { ...updates };
-        const firestoreRef = doc(db, 'settings', 'branding');
-        const snap = await getDoc(firestoreRef);
-        const currentData = snap.exists() ? snap.data() : {};
-        
-        await setDoc(firestoreRef, {
-           ...currentData,
-           ...finalUpdates,
-           updatedAt: serverTimestamp()
-        });
-        
-        return finalUpdates;
+        await saveBranding(updates);
+        return updates;
     } catch(err) {
-        console.error("Failed to push to firebase:", err);
-        handleFirestoreError(err, 'update', 'settings/branding');
+        console.error("Failed to save branding:", err);
         throw err;
     }
   };
@@ -144,7 +131,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
     if (!assessments || assessments.length === 0) return;
     const headers = ['Name,Email,Score,Integrity,Status,Date'];
     const rows = assessments.map(a => {
-        const date = a.createdAt ? new Date(a.createdAt.toMillis()).toLocaleDateString() : 'N/A';
+        const ts = typeof a.createdAt === 'string'
+          ? Date.parse(a.createdAt)
+          : (a.createdAt?.toMillis?.() ?? null);
+        const date = ts ? new Date(ts).toLocaleDateString() : 'N/A';
         return `"${a.userName}","${a.userEmail}",${a.score},${a.integrityScore},${a.status},"${date}"`;
     });
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.concat(rows).join("\n");
@@ -274,30 +264,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
             0, 0, targetWidth, targetHeight
         );
 
-        // Convert to binary Blob for efficient upload
-        const blob = await new Promise<Blob | null>((resolve) => {
-            canvas.toBlob(
-                (b) => resolve(b),
-                activeTab === 'cert' ? 'image/jpeg' : 'image/png',
-                activeTab === 'cert' ? 0.92 : undefined
-            );
-        });
+        // Encode as a data URL — the branding endpoint stores it as bytea on the server.
+        const mime = activeTab === 'cert' ? 'image/jpeg' : 'image/png';
+        const dataUrl = canvas.toDataURL(mime, activeTab === 'cert' ? 0.92 : undefined);
 
-        if (!blob) throw new Error("Failed to create binary image blob");
-
-        // Upload to Storage
-        const ext = activeTab === 'cert' ? 'jpg' : 'png';
-        const storageRef = ref(storage, `branding/${activeTab}_${Date.now()}.${ext}`);
-        
-        const uploadResult = await uploadBytes(storageRef, blob);
-        const downloadURL = await getDownloadURL(uploadResult.ref);
-        
         const fieldKey = activeTab === 'cert' ? 'certBg' : activeTab;
-        const updates = await pushToFirestore({ [fieldKey]: downloadURL });
+        await pushToFirestore({ [fieldKey]: dataUrl });
 
-        if (activeTab === 'logo') setSavedLogo(downloadURL);
-        if (activeTab === 'badge') setSavedBadge(downloadURL);
-        if (activeTab === 'cert') setSavedCert(downloadURL);
+        if (activeTab === 'logo') setSavedLogo(dataUrl);
+        if (activeTab === 'badge') setSavedBadge(dataUrl);
+        if (activeTab === 'cert') setSavedCert(dataUrl);
         
         alert(lang === "ar" ? "تم الحفظ بنجاح!" : "Saved successfully!");
         setImgSrc('');
@@ -347,13 +323,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
       const fetchAssessments = async () => {
         setLoadingStats(true);
         try {
-          const snapshot = await getDocs(collectionGroup(db, 'assessments'));
-          const data = snapshot.docs.map(doc => doc.data());
-          data.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
+          const data = await listAssessments();
           setAssessments(data);
         } catch (error) {
           console.error("Error fetching admin assessments:", error);
-          handleFirestoreError(error, 'list', '{path=**}/assessments');
         } finally {
           setLoadingStats(false);
         }
