@@ -14,7 +14,8 @@
     "db:export-firestore": "node scripts/export-firestore.js",
     "db:import-postgres": "node scripts/import-postgres.js",
     "db:upload-cert-bg": "node scripts/upload-cert-bg.js",
-    "seed:tcp": "tsx scripts/seed-tcp.ts"
+    "seed:tcp": "tsx scripts/seed-tcp.ts",
+    "upload:vimeo": "node scripts/upload-vimeo.js"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
@@ -46,8 +47,10 @@
     "@types/pg": "^8.20.0",
     "@types/vimeo__player": "^2.18.3",
     "@types/ws": "^8.18.1",
+    "@vimeo/vimeo": "^3.0.3",
     "@vitest/coverage-v8": "^4.1.6",
     "autoprefixer": "^10.4.21",
+    "dotenv": "^17.4.2",
     "esbuild": "^0.28.0",
     "firebase-admin": "^13.9.0",
     "jsdom": "^29.1.1",
