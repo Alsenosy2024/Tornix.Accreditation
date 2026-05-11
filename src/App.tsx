@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AdminPanel } from './components/AdminPanel';
 import { CourseViewer } from './components/CourseViewer';
+import { SegmentedCourseViewer } from './components/SegmentedCourseViewer';
 import { Onboarding } from './components/Onboarding';
 import {
   Play,
@@ -554,6 +555,7 @@ const TornixLogo = ({ lang }: { lang?: 'ar' | 'en' }) => {
 export default function App() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [showCourse, setShowCourse] = useState(false);
+  const [showSegmentedCourse, setShowSegmentedCourse] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
@@ -1176,6 +1178,12 @@ export default function App() {
             >
               <Info className="w-3.5 h-3.5" />
               {isAr ? 'عن تورنكس' : 'About Tornix'}
+            </button>
+            <button
+              onClick={() => setShowSegmentedCourse(true)}
+              className="hidden sm:inline-flex btn btn-primary btn-sm"
+            >
+              {isAr ? 'دورة TCP' : 'TCP Course'}
             </button>
             <div className="inline-flex items-center p-0.5 rounded-full" style={{ background: 'var(--border-hairline)' }}>
               <button
@@ -1876,6 +1884,17 @@ export default function App() {
 
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} lang={lang} />}
       {showCourse && <CourseViewer onClose={() => setShowCourse(false)} lang={lang} />}
+      {showSegmentedCourse && (
+        <SegmentedCourseViewer
+          lang={lang}
+          courseSlug="tcp"
+          onClose={() => setShowSegmentedCourse(false)}
+          onStartExam={() => {
+            setShowSegmentedCourse(false);
+            handleStartExam();
+          }}
+        />
+      )}
       {showOnboarding && (
         <Onboarding 
           lang={lang} 
