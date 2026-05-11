@@ -27,6 +27,12 @@ async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
       ...(init?.headers || {}),
     },
   });
+  if (res.status === 401) {
+    // Save last URL so we can return after login, then redirect
+    try { sessionStorage.setItem('postLoginReturn', window.location.pathname + window.location.search); } catch {}
+    // Defer redirect to next tick so callers can handle errors first if they want
+    setTimeout(() => { window.location.assign('/'); }, 0);
+  }
   const text = await res.text();
   let data: any = undefined;
   try { data = text ? JSON.parse(text) : undefined; } catch { /* not JSON */ }
