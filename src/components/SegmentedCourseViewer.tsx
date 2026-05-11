@@ -1,0 +1,189 @@
+import React, { useEffect, useReducer, useState } from 'react';
+import { X, Lock, Sparkles, FileText } from 'lucide-react';
+import {
+  fetchSegmentedCourse, fetchMyProgress,
+  type SegmentedCourse, type CourseSegment, type ProgressRow,
+} from '../api';
+import { reducer, initialState } from './segmentedCoursePlayer/reducer';
+import { completedSegments, examUnlocked, resumePoint } from './segmentedCoursePlayer/helpers';
+
+interface Props {
+  lang: 'ar' | 'en';
+  courseSlug: string;
+  onClose: () => void;
+  onStartExam: () => void;
+}
+
+export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClose, onStartExam }) => {
+  const isAr = lang === 'ar';
+  const [course, setCourse] = useState<SegmentedCourse | null>(null);
+  const [segments, setSegments] = useState<CourseSegment[]>([]);
+  const [progress, setProgress] = useState<ProgressRow[]>([]);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const [bottomTab, setBottomTab] = useState<'overview' | 'transcript' | 'resources'>('overview');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [det, prog] = await Promise.all([
+          fetchSegmentedCourse(courseSlug),
+          fetchMyProgress(courseSlug).catch(() => [] as ProgressRow[]),
+        ]);
+        if (!alive) return;
+        setCourse(det.course);
+        setSegments(det.segments);
+        setProgress(prog);
+        dispatch({ type: 'SET_COUNT', segmentCount: det.segments.length });
+        const resume = resumePoint(det.segments, prog);
+        dispatch({
+          type: 'GOTO',
+          segmentNum: resume?.segmentNum ?? 1,
+          clipKind: resume?.clipKind ?? 'intro',
+        });
+      } catch (e: unknown) {
+        if (alive) setLoadErr((e as Error)?.message || 'load failed');
+      }
+    })();
+    return () => { alive = false; };
+  }, [courseSlug]);
+
+  if (loadErr) {
+    return (
+      <div className="fixed inset-0 z-50 grid place-items-center" style={{ background: 'var(--bg)' }}>
+        <div className="card p-6 text-center max-w-md">
+          <strong className="text-h3 block mb-2">{isAr ? 'تعذّر تحميل الكورس' : 'Failed to load course'}</strong>
+          <p className="text-body-m mb-4" style={{ color: 'var(--text-muted)' }}>{loadErr}</p>
+          <button className="btn btn-primary btn-md" onClick={() => location.reload()}>
+            {isAr ? 'إعادة المحاولة' : 'Retry'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="fixed inset-0 z-50 grid place-items-center" style={{ background: 'var(--bg)' }}>
+        <span className="inline-block w-5 h-5 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--border-hairline)', borderTopColor: 'var(--primary)' }} />
+      </div>
+    );
+  }
+
+  const currentSeg: CourseSegment | undefined = segments[state.currentSegmentNum - 1];
+  const completed = completedSegments(segments, progress);
+  const unlocked = examUnlocked(completed, segments.length, course.unlockThresholdPct);
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: 'var(--bg)', direction: isAr ? 'rtl' : 'ltr' }}>
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 px-5 md:px-8 h-16 flex items-center justify-between"
+           style={{ background: 'var(--nav-bg)', borderBottom: '1px solid var(--border-hairline)' }}>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="" className="w-7 h-7 object-contain" />
+          <strong className="text-h4">{isAr ? course.titleAr : course.titleEn}</strong>
+          <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
+            {state.currentSegmentNum} / {segments.length}
+          </span>
+        </div>
+        <button onClick={onClose} className="btn btn-ghost btn-sm">
+          <X className="w-4 h-4" />
+          {isAr ? 'إغلاق' : 'Close'}
+        </button>
+      </div>
+
+      <div className="p-5 md:p-8">
+        <div className="max-w-6xl mx-auto flex flex-col xl:flex-row gap-6">
+          {/* Center column: player + tabs */}
+          <div className="flex-1 min-w-0">
+            <div className="rounded-2xl overflow-hidden mb-5 aspect-video relative"
+                 style={{ background: '#0F172A', border: '1px solid var(--border-hairline)' }}>
+              {currentSeg ? (
+                <div className="w-full h-full grid place-items-center text-white text-body-m">
+                  Segment {currentSeg.num} • {state.currentClipKind}
+                </div>
+              ) : (
+                <div className="w-full h-full grid place-items-center text-white">…</div>
+              )}
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-3 mb-3">
+              {(['overview', 'transcript', 'resources'] as const).map(t => (
+                <button key={t}
+                  onClick={() => setBottomTab(t)}
+                  className={`btn btn-sm ${bottomTab === t ? 'btn-primary' : 'btn-ghost'}`}>
+                  {isAr
+                    ? (t === 'overview' ? 'نظرة عامة' : t === 'transcript' ? 'النص الكامل' : 'الموارد')
+                    : (t === 'overview' ? 'Overview' : t === 'transcript' ? 'Transcript' : 'Resources')}
+                </button>
+              ))}
+            </div>
+
+            <div className="card p-5">
+              {bottomTab === 'overview' && currentSeg && (
+                <p className="text-body-m leading-relaxed">
+                  {isAr ? currentSeg.descriptionAr : currentSeg.descriptionEn}
+                </p>
+              )}
+              {bottomTab === 'transcript' && (
+                <p className="text-body-m" style={{ color: 'var(--text-muted)' }}>
+                  {isAr ? 'يتم التحميل…' : 'Loading…'}
+                </p>
+              )}
+              {bottomTab === 'resources' && (
+                <p className="text-body-m" style={{ color: 'var(--text-muted)' }}>{isAr ? 'قريبًا' : 'Coming soon'}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Right rail (RTL: left side): curriculum */}
+          <aside className="xl:w-[320px] shrink-0">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-label flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                {isAr ? `المنهج (${completed}/${segments.length})` : `Curriculum (${completed}/${segments.length})`}
+              </span>
+            </div>
+            <div className="space-y-2 mb-5">
+              {segments.map(seg => {
+                const segProg = progress.filter(p => p.segmentId === seg.id);
+                const completedKinds = new Set(segProg.filter(p => p.completedAt).map(p => p.clipKind));
+                const isActive = seg.num === state.currentSegmentNum;
+                return (
+                  <button key={seg.id}
+                    onClick={() => dispatch({ type: 'GOTO', segmentNum: seg.num, clipKind: 'intro' })}
+                    className="w-full text-start card card-tight p-3 transition-colors"
+                    style={{
+                      background: isActive ? 'var(--primary-wash)' : 'var(--card)',
+                      borderColor: isActive ? 'var(--primary)' : 'var(--border-hairline)',
+                    }}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-h4">{seg.num}. {isAr ? seg.titleAr : seg.titleEn}</span>
+                      <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
+                        {(['intro', 'content', 'outro'] as const).map(k => (
+                          <span key={k} className="inline-block w-2 h-2 rounded-full mx-0.5"
+                                style={{ background: completedKinds.has(k) ? 'var(--completed)' : 'var(--border-hairline)' }} />
+                        ))}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              disabled={!unlocked}
+              onClick={onStartExam}
+              className="btn btn-primary btn-md w-full"
+              title={unlocked ? '' : (isAr ? `أكمل ${Math.ceil(course.unlockThresholdPct / 100 * segments.length)} مقطعًا على الأقل لفتح الاختبار` : 'Complete more segments to unlock the exam')}>
+              {unlocked ? <Sparkles className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              {isAr ? 'ابدأ الاختبار النهائي' : 'Start final exam'}
+            </button>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+};
