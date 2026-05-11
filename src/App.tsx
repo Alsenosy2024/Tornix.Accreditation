@@ -34,7 +34,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { generateQuizQuestions, GeneratedQuestion } from './services/geminiService';
-import { fetchBranding, submitAssessment, listAssessments, loginWithGoogle, logout } from './api';
+import { fetchBranding, submitAssessment, loginWithGoogle, logout } from './api';
 import { useSession } from './useSession';
 import { 
   Radar, 
@@ -605,31 +605,6 @@ export default function App() {
          if (user.photo) setUserPhoto(user.photo);
      }
   }, [user]);
-
-  // Auto-resume: if the signed-in user already has a passing assessment,
-  // jump straight to the result/certificate screen on first load (they can
-  // still hit "Restart assessment" if they want to retake).
-  const priorPassCheckedRef = useRef(false);
-  useEffect(() => {
-    if (priorPassCheckedRef.current || !user?.email) return;
-    priorPassCheckedRef.current = true;
-    listAssessments()
-      .then(rows => {
-        const mine = (rows || []).filter(r =>
-          r.userEmail && r.userEmail.toLowerCase() === user.email.toLowerCase()
-        );
-        const passed = mine.find(r =>
-          Number(r.score) >= 60 && (r.status === 'Passed' || r.status === 'completed')
-        );
-        if (passed) {
-          setScore(Number(passed.score));
-          if (passed.userName) setUserName(passed.userName);
-          if (passed.userPhoto) setUserPhoto(passed.userPhoto);
-          setStep('result');
-        }
-      })
-      .catch(() => {/* network/RLS issue → fall through to normal welcome flow */});
-  }, [user?.email]);
 
   // Admin Hotkey
   useEffect(() => {
