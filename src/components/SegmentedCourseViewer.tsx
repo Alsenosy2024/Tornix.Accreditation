@@ -3,10 +3,12 @@ import Vimeo from '@vimeo/player';
 import { X, Lock, Sparkles, FileText } from 'lucide-react';
 import {
   fetchSegmentedCourse, fetchMyProgress, fetchTranscript,
+  upsertProgress, beaconProgress,
   type SegmentedCourse, type CourseSegment, type ProgressRow,
 } from '../api';
+import { throttle } from '../lib/throttle';
 import { reducer, initialState } from './segmentedCoursePlayer/reducer';
-import { completedSegments, examUnlocked, resumePoint } from './segmentedCoursePlayer/helpers';
+import { completedSegments, examUnlocked, resumePoint, clipDurationFor, isClipComplete } from './segmentedCoursePlayer/helpers';
 
 interface Props {
   lang: 'ar' | 'en';
@@ -69,21 +71,56 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
       outro: currentSeg.vimeo.outroId,
     };
     const players: typeof playersRef.current = {};
+    const throttles: Array<{ cancel: () => void; flush: () => void }> = [];
 
     for (const kind of ['intro', 'content', 'outro'] as const) {
       const iframe = map[kind].current;
       if (!iframe || !ids[kind]) continue;
       iframe.src = `https://player.vimeo.com/video/${ids[kind]}?autoplay=0&controls=1&dnt=1`;
       const p = new Vimeo(iframe);
+
+      const writer = throttle((sec: number) => {
+        const dur = clipDurationFor(currentSeg, kind);
+        const completedAt = isClipComplete(sec, dur) ? new Date().toISOString() : undefined;
+        upsertProgress({ segmentId: currentSeg.id, clipKind: kind, positionSec: sec, completedAt })
+          .then(() => {
+            // Optimistic local update so the sidebar checkmarks reflect immediately
+            setProgress(prev => {
+              const others = prev.filter(r => !(r.segmentId === currentSeg.id && r.clipKind === kind));
+              const existing = prev.find(r => r.segmentId === currentSeg.id && r.clipKind === kind);
+              return [...others, {
+                segmentId: currentSeg.id, clipKind: kind, positionSec: sec,
+                completedAt: completedAt ?? existing?.completedAt ?? null,
+                updatedAt: new Date().toISOString(),
+              }];
+            });
+          })
+          .catch(() => {/* swallow; the next throttle tick or beacon will retry */});
+      }, 7000);
+      throttles.push(writer);
+
       p.on('play',  () => dispatch({ type: 'CLIP_PLAYING' }));
-      p.on('pause', () => dispatch({ type: 'CLIP_PAUSED' }));
-      p.on('ended', () => dispatch({ type: 'CLIP_ENDED', kind }));
+      p.on('pause', () => { dispatch({ type: 'CLIP_PAUSED' }); writer.flush(); });
+      p.on('ended', () => { writer.flush(); dispatch({ type: 'CLIP_ENDED', kind }); });
+      p.on('timeupdate', (e: { seconds: number }) => writer(e.seconds));
+
+      // Auto-resume: if this is the active clip on mount and we have a saved position, seek
+      if (kind === state.currentClipKind) {
+        const saved = progress.find(r => r.segmentId === currentSeg.id && r.clipKind === kind);
+        if (saved && saved.positionSec > 1) {
+          p.setCurrentTime(saved.positionSec).catch(() => {});
+        }
+      }
+
       players[kind] = p;
     }
     playersRef.current = players;
 
     return () => {
-      (['intro', 'content', 'outro'] as const).forEach(k => players[k]?.destroy().catch(() => {}));
+      throttles.forEach(t => t.cancel());
+      (['intro', 'content', 'outro'] as const).forEach(k => {
+        players[k]?.destroy().catch(() => {});
+      });
       playersRef.current = {};
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,6 +157,24 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
 
   // Fetch transcript when tab is active and segment is loaded
   const currentSeg: CourseSegment | undefined = segments[state.currentSegmentNum - 1];
+
+  // Flush a final progress write when the user closes the tab / navigates away
+  React.useEffect(() => {
+    if (!currentSeg) return;
+    const beforeUnload = () => {
+      const p = playersRef.current[state.currentClipKind];
+      if (!p) return;
+      p.getCurrentTime().then(sec => {
+        beaconProgress({
+          segmentId: currentSeg.id,
+          clipKind: state.currentClipKind,
+          positionSec: sec,
+        }).catch(() => {});
+      }).catch(() => {});
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [currentSeg?.id, state.currentClipKind]);
   useEffect(() => {
     if (bottomTab !== 'transcript' || !currentSeg) return;
     let alive = true;
