@@ -2,7 +2,7 @@ import React, { useEffect, useReducer, useState } from 'react';
 import Vimeo from '@vimeo/player';
 import { X, Lock, Sparkles, FileText } from 'lucide-react';
 import {
-  fetchSegmentedCourse, fetchMyProgress,
+  fetchSegmentedCourse, fetchMyProgress, fetchTranscript,
   type SegmentedCourse, type CourseSegment, type ProgressRow,
 } from '../api';
 import { reducer, initialState } from './segmentedCoursePlayer/reducer';
@@ -23,6 +23,8 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [state, dispatch] = useReducer(reducer, initialState);
   const [bottomTab, setBottomTab] = useState<'overview' | 'transcript' | 'resources'>('overview');
+  const [transcript, setTranscript] = useState<{ start: number; end: number; text: string }[]>([]);
+  const [transcriptErr, setTranscriptErr] = useState<string | null>(null);
 
   const introRef = React.useRef<HTMLIFrameElement | null>(null);
   const contentRef = React.useRef<HTMLIFrameElement | null>(null);
@@ -116,6 +118,19 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
     }
   }, [state.upNext?.countdownSec, state.upNext?.cancelled]);
 
+  // Fetch transcript when tab is active and segment is loaded
+  const currentSeg: CourseSegment | undefined = segments[state.currentSegmentNum - 1];
+  useEffect(() => {
+    if (bottomTab !== 'transcript' || !currentSeg) return;
+    let alive = true;
+    setTranscript([]);
+    setTranscriptErr(null);
+    fetchTranscript(currentSeg.slug)
+      .then(r => { if (alive) setTranscript(r.sentences); })
+      .catch(e => { if (alive) setTranscriptErr(e?.message || 'failed'); });
+    return () => { alive = false; };
+  }, [bottomTab, currentSeg?.slug]);
+
   if (loadErr) {
     return (
       <div className="fixed inset-0 z-50 grid place-items-center" style={{ background: 'var(--bg)' }}>
@@ -138,7 +153,6 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
     );
   }
 
-  const currentSeg: CourseSegment | undefined = segments[state.currentSegmentNum - 1];
   const completed = completedSegments(segments, progress);
   const unlocked = examUnlocked(completed, segments.length, course.unlockThresholdPct);
 
@@ -278,9 +292,23 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
                 </p>
               )}
               {bottomTab === 'transcript' && (
-                <p className="text-body-m" style={{ color: 'var(--text-muted)' }}>
-                  {isAr ? 'يتم التحميل…' : 'Loading…'}
-                </p>
+                <div className="max-h-96 overflow-y-auto text-body-m leading-relaxed space-y-2">
+                  {transcriptErr && (
+                    <p style={{ color: 'var(--sem-red)' }}>{isAr ? 'تعذّر تحميل النص' : 'Failed to load transcript'}</p>
+                  )}
+                  {!transcriptErr && transcript.length === 0 && (
+                    <p style={{ color: 'var(--text-muted)' }}>{isAr ? 'يتم التحميل…' : 'Loading…'}</p>
+                  )}
+                  {transcript.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => playersRef.current.content?.setCurrentTime(s.start).catch(() => {})}
+                      className="block w-full text-start p-2 rounded hover:bg-[var(--bg-alt)]"
+                      title={`${Math.floor(s.start/60)}:${String(Math.floor(s.start%60)).padStart(2,'0')}`}>
+                      {s.text}
+                    </button>
+                  ))}
+                </div>
               )}
               {bottomTab === 'resources' && (
                 <p className="text-body-m" style={{ color: 'var(--text-muted)' }}>{isAr ? 'قريبًا' : 'Coming soon'}</p>
