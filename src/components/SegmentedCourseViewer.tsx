@@ -32,6 +32,7 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
   const contentRef = React.useRef<HTMLIFrameElement | null>(null);
   const outroRef = React.useRef<HTMLIFrameElement | null>(null);
   const playersRef = React.useRef<{ intro?: Vimeo; content?: Vimeo; outro?: Vimeo }>({});
+  const lastPosSecRef = React.useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -102,7 +103,7 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
       p.on('play',  () => dispatch({ type: 'CLIP_PLAYING' }));
       p.on('pause', () => { dispatch({ type: 'CLIP_PAUSED' }); writer.flush(); });
       p.on('ended', () => { writer.flush(); dispatch({ type: 'CLIP_ENDED', kind }); });
-      p.on('timeupdate', (e: { seconds: number }) => writer(e.seconds));
+      p.on('timeupdate', (e: { seconds: number }) => { lastPosSecRef.current = e.seconds; writer(e.seconds); });
 
       // Auto-resume: if this is the active clip on mount and we have a saved position, seek
       if (kind === state.currentClipKind) {
@@ -150,10 +151,11 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
 
   // When countdown reaches 0 and not cancelled, trigger outro CLIP_ENDED so the reducer advances
   React.useEffect(() => {
-    if (state.upNext?.countdownSec === 0 && !state.upNext.cancelled) {
-      dispatch({ type: 'CLIP_ENDED', kind: 'outro' });
-    }
-  }, [state.upNext?.countdownSec, state.upNext?.cancelled]);
+    if (state.currentClipKind !== 'outro') return;
+    if (!state.upNext || state.upNext.cancelled) return;
+    if (state.upNext.countdownSec !== 0) return;
+    dispatch({ type: 'CLIP_ENDED', kind: 'outro' });
+  }, [state.currentClipKind, state.upNext?.countdownSec, state.upNext?.cancelled]);
 
   // Fetch transcript when tab is active and segment is loaded
   const currentSeg: CourseSegment | undefined = segments[state.currentSegmentNum - 1];
@@ -162,15 +164,11 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
   React.useEffect(() => {
     if (!currentSeg) return;
     const beforeUnload = () => {
-      const p = playersRef.current[state.currentClipKind];
-      if (!p) return;
-      p.getCurrentTime().then(sec => {
-        beaconProgress({
-          segmentId: currentSeg.id,
-          clipKind: state.currentClipKind,
-          positionSec: sec,
-        }).catch(() => {});
-      }).catch(() => {});
+      beaconProgress({
+        segmentId: currentSeg.id,
+        clipKind: state.currentClipKind,
+        positionSec: lastPosSecRef.current,
+      });
     };
     window.addEventListener('beforeunload', beforeUnload);
     return () => window.removeEventListener('beforeunload', beforeUnload);
@@ -318,7 +316,11 @@ export const SegmentedCourseViewer: React.FC<Props> = ({ lang, courseSlug, onClo
                       <p className="text-body-m mb-5" style={{ color: 'var(--text-muted)' }}>
                         {isAr ? 'جاهز للاختبار النهائي وللحصول على الاعتماد.' : 'Ready for the final exam and certificate.'}
                       </p>
-                      <button className="btn btn-primary btn-md w-full" onClick={onStartExam}>
+                      <button
+                        className="btn btn-primary btn-md w-full"
+                        disabled={!unlocked}
+                        onClick={onStartExam}
+                        title={unlocked ? '' : (isAr ? 'أكمل المقاطع المطلوبة لفتح الاختبار' : 'Complete more segments to unlock the exam')}>
                         {isAr ? 'ابدأ الاختبار النهائي' : 'Start final exam'}
                       </button>
                     </div>

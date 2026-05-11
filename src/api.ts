@@ -12,9 +12,12 @@ export interface SessionUser {
   isAdmin: boolean;
 }
 
+let cachedAuthToken: string | null = null;
+
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
   const tok = data.session?.access_token;
+  if (tok) cachedAuthToken = tok;
   return tok ? { Authorization: `Bearer ${tok}` } : {};
 }
 
@@ -194,12 +197,13 @@ export const upsertProgress = (payload: {
 }): Promise<{ ok: true }> =>
   jsonFetch('/api/progress', { method: 'POST', body: JSON.stringify(payload) });
 
-// Beacon-friendly variant: returns true if accepted by the browser.
-// Use during `beforeunload` so the final write is not lost.
-export async function beaconProgress(payload: {
+// Beacon-friendly variant: synchronous, uses cached token — safe to call in `beforeunload`.
+// Returns true if accepted by the browser, false if no cached token is available.
+// The token cache is warmed by every authHeaders() call (i.e. every normal API request).
+export function beaconProgress(payload: {
   segmentId: number; clipKind: ClipKind; positionSec: number; completedAt?: string;
-}): Promise<boolean> {
-  const tok = (await supabase.auth.getSession()).data.session?.access_token;
+}): boolean {
+  const tok = cachedAuthToken;
   if (!tok) return false;
   const blob = new Blob([JSON.stringify({ ...payload, _token: tok })], { type: 'application/json' });
   return navigator.sendBeacon('/api/progress', blob);
