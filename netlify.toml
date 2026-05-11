@@ -56,6 +56,11 @@
   to = "/.netlify/functions/progress?courseSlug=:courseSlug"
   status = 200
 
+[[redirects]]
+  from = "/api/transcript/:slug"
+  to = "/.netlify/functions/transcript?slug=:slug"
+  status = 200
+
 # SPA fallback
 [[redirects]]
   from = "/*"
