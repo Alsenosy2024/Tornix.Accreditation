@@ -14,7 +14,8 @@ export const handler: Handler = async (event) => {
     if (!session) return { statusCode: 401, body: JSON.stringify({ error: 'sign in required' }) };
 
     const supabase = clientFor(event);
-    const slug = event.queryStringParameters?.courseSlug;
+    const pathSlug = (event.path || '').match(/\/progress\/([^/?]+)/)?.[1];
+    const slug = event.queryStringParameters?.courseSlug || pathSlug;
     if (!slug) return { statusCode: 400, body: JSON.stringify({ error: 'courseSlug required' }) };
 
     const { data: course, error: cErr } = await supabase

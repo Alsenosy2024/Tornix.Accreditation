@@ -9,7 +9,10 @@ export const handler: Handler = async (event) => {
   const supabase = clientFor(event);
 
   if (event.httpMethod === 'GET') {
-    const slug = event.queryStringParameters?.slug || null;
+    // Read slug from query string OR parse it out of the path, in case the
+    // Netlify redirect for /api/segmented-courses/:slug didn't fire.
+    const pathSlug = (event.path || '').match(/\/segmented-courses\/([^/?]+)/)?.[1];
+    const slug = event.queryStringParameters?.slug || pathSlug || null;
 
     if (slug) {
       const { data: course, error: cErr } = await supabase

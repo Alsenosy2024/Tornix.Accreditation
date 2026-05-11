@@ -36,24 +36,27 @@
   to   = "/.netlify/functions/assessments"
   status = 200
 
-[[redirects]]
-  from = "/api/segmented-courses"
-  to = "/.netlify/functions/segmented-courses"
-  status = 200
-
+# Parameterized routes MUST come before the no-param exact match.
+# Netlify's redirect matcher routes /api/<foo>/<bar> to the exact /api/<foo>
+# rule when that rule is listed first, silently dropping the path segment.
 [[redirects]]
   from = "/api/segmented-courses/:slug"
   to = "/.netlify/functions/segmented-courses?slug=:slug"
   status = 200
 
 [[redirects]]
-  from = "/api/progress"
-  to = "/.netlify/functions/progress"
+  from = "/api/segmented-courses"
+  to = "/.netlify/functions/segmented-courses"
   status = 200
 
 [[redirects]]
   from = "/api/progress/:courseSlug"
   to = "/.netlify/functions/progress?courseSlug=:courseSlug"
+  status = 200
+
+[[redirects]]
+  from = "/api/progress"
+  to = "/.netlify/functions/progress"
   status = 200
 
 [[redirects]]

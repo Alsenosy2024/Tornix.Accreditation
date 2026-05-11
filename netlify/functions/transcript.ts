@@ -42,7 +42,8 @@ export const handler: Handler = async (event) => {
     return { statusCode: 405, body: JSON.stringify({ error: 'method not allowed' }) };
   }
 
-  const slug = event.queryStringParameters?.slug;
+  const pathSlug = (event.path || '').match(/\/transcript\/([^/?]+)/)?.[1];
+  const slug = event.queryStringParameters?.slug || pathSlug;
   if (!slug) return { statusCode: 400, body: JSON.stringify({ error: 'slug required' }) };
 
   const range = SOURCE_RANGES[slug];
