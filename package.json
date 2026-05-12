@@ -15,7 +15,8 @@
     "db:import-postgres": "node scripts/import-postgres.js",
     "db:upload-cert-bg": "node scripts/upload-cert-bg.js",
     "seed:tcp": "tsx scripts/seed-tcp.ts",
-    "upload:vimeo": "node scripts/upload-vimeo.js"
+    "upload:vimeo": "node scripts/upload-vimeo.js",
+    "backfill:certs": "tsx scripts/backfill-certs.ts"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
