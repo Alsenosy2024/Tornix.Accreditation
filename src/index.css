@@ -467,3 +467,74 @@ html { transition: background-color 200ms cubic-bezier(0.22, 1, 0.36, 1), color 
 }
 [data-theme="dark"] input[type="range"]::-webkit-slider-thumb { border-color: var(--card); }
 [data-theme="dark"] input[type="range"]::-moz-range-thumb { border-color: var(--card); }
+
+/* ─────────────────────────────────────────────────────────────
+   Course hero CTA — the recommended-path entry on the welcome screen.
+   Light: deep brand-violet gradient with a halo-pulsing play orb.
+   Dark : keeps the violet identity but lowers luminance so the
+          icon-white contrast on the orb stays clean.
+   ───────────────────────────────────────────────────────────── */
+.cta-course-hero {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #7D42C6 0%, #6A35AB 55%, #5A2D9B 100%);
+  box-shadow:
+    0 14px 36px -16px oklch(0.42 0.16 296 / 0.55),
+    inset 0 1px 0 0 rgba(255,255,255,0.18);
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cta-course-hero:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 22px 46px -16px oklch(0.42 0.18 296 / 0.65),
+    inset 0 1px 0 0 rgba(255,255,255,0.22);
+}
+.cta-course-hero:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+[data-theme="dark"] .cta-course-hero {
+  background: linear-gradient(135deg, oklch(0.42 0.13 296) 0%, oklch(0.32 0.10 296) 55%, oklch(0.26 0.085 296) 100%);
+  box-shadow:
+    0 14px 36px -16px oklch(0.20 0.06 296 / 0.85),
+    inset 0 1px 0 0 rgba(255,255,255,0.10);
+}
+[data-theme="dark"] .cta-course-hero:hover {
+  box-shadow:
+    0 22px 46px -16px oklch(0.20 0.07 296 / 0.95),
+    inset 0 1px 0 0 rgba(255,255,255,0.14);
+}
+
+/* The play orb — circular badge that holds the icon */
+.cta-course-orb {
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.22);
+}
+
+/* The breathing halo that draws the eye */
+.cta-course-halo {
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 65%);
+  opacity: 0.55;
+  animation: cta-course-halo-pulse 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes cta-course-halo-pulse {
+  0%   { transform: scale(0.85); opacity: 0.55; }
+  60%  { transform: scale(1.45); opacity: 0; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-course-halo { animation: none; opacity: 0.35; }
+  .cta-course-hero { transition: none; }
+  .cta-course-hero:hover { transform: none; }
+}

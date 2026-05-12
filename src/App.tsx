@@ -27,6 +27,7 @@ import {
   Award,
   Info,
   BookOpen,
+  PlayCircle,
   RefreshCcw,
   XCircle,
   Loader2,
@@ -1316,7 +1317,35 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="card mt-10 p-6 md:p-8 max-w-md mx-auto">
+                  {user && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSegmentedCourse(true)}
+                      className="cta-course-hero group mt-10 w-full max-w-xl mx-auto flex items-center gap-5 md:gap-6 text-start rounded-3xl px-6 md:px-7 py-5 md:py-6 relative overflow-hidden"
+                      aria-label={isAr ? 'ابدأ دورة TCP' : 'Start the TCP course'}
+                    >
+                      <span className="cta-course-orb relative shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-full grid place-items-center" aria-hidden>
+                        <span className="cta-course-halo" />
+                        <PlayCircle className="relative w-7 h-7 md:w-8 md:h-8" strokeWidth={1.6} />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[0.6875rem] uppercase tracking-[0.14em] font-semibold opacity-85 mb-0.5">
+                          {isAr ? 'الطريق الموصى به' : 'Recommended path'}
+                        </span>
+                        <span className="block text-h3 leading-tight mb-1" style={{ color: 'currentColor' }}>
+                          {isAr ? 'ابدأ دورة TCP' : 'Start the TCP course'}
+                        </span>
+                        <span className="block text-[0.8125rem] opacity-90 leading-snug">
+                          {isAr
+                            ? '٢٢ مقطعًا مرشدًا — مقدمة، محتوى، وخاتمة لكل جزء، ثم الاختبار والشهادة.'
+                            : '22 guided segments — intro, content, and outro each, then the exam and certificate.'}
+                        </span>
+                      </span>
+                      <ChevronRight className={`w-5 h-5 shrink-0 opacity-90 transition-transform group-hover:translate-x-0.5 ${isAr ? 'rotate-180 group-hover:!-translate-x-0.5' : ''}`} />
+                    </button>
+                  )}
+
+                  <div className={`card ${user ? 'mt-5' : 'mt-10'} p-6 md:p-8 max-w-md mx-auto`}>
                     {!user ? (
                       <>
                         <h3 className="text-h4 mb-1" style={{ color: 'var(--text-heading)' }}>
@@ -1344,6 +1373,14 @@ export default function App() {
                       </>
                     ) : (
                       <>
+                        <div className="flex items-center gap-3 mb-5">
+                          <span className="flex-1 h-px" style={{ background: 'var(--border-hairline)' }} />
+                          <span className="text-[0.7rem] font-medium uppercase tracking-[0.1em]" style={{ color: 'var(--text-muted)' }}>
+                            {isAr ? 'أو، الاختبار مباشرة' : 'or, exam directly'}
+                          </span>
+                          <span className="flex-1 h-px" style={{ background: 'var(--border-hairline)' }} />
+                        </div>
+
                         <div className="space-y-4">
                           <label className="block">
                             <span className="text-label block mb-2">
@@ -1384,18 +1421,10 @@ export default function App() {
                         <button
                           onClick={handleRegistrationSubmit}
                           disabled={!userName.trim()}
-                          className="btn btn-primary btn-lg w-full mt-6"
+                          className="btn btn-ghost btn-md w-full mt-5"
                         >
                           {isAr ? 'المتابعة إلى التحقق' : 'Continue to verification'}
                           <ChevronRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        <button
-                          onClick={() => setShowCourse(true)}
-                          className="btn btn-ghost btn-md w-full mt-3"
-                        >
-                          <BookOpen className="w-4 h-4" />
-                          {isAr ? 'مركز المعرفة والتدريب' : 'Knowledge & training center'}
                         </button>
                       </>
                     )}
