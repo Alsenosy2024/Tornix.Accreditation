@@ -580,8 +580,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
-  const [theme] = useState<'light'>('light');
-  
+
   const [isEssayMode, setIsEssayMode] = useState(false);
   const [essayAnswer, setEssayAnswer] = useState('');
   const [isValidatingEssay, setIsValidatingEssay] = useState(false);
@@ -627,9 +626,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-  }, [theme, lang]);
+  }, [lang]);
 
   useEffect(() => {
     let timer: any;
