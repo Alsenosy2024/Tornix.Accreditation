@@ -98,10 +98,15 @@ export const handler: Handler = async (event) => {
     // Belt-and-suspenders: give the layout one more paint cycle for the photo image.
     await new Promise(r => setTimeout(r, 300));
 
+    // Match the page size to the viewport (2480 × 3508 px) so the result is a
+    // single-page PDF with no scaling/pagination. Using format: 'A4' caused
+    // Puppeteer to paginate the wide viewport across multiple ~794px A4 pages.
     pdfBuffer = Buffer.from(await page.pdf({
-      format: 'A4',
+      width: '2480px',
+      height: '3508px',
       printBackground: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      preferCSSPageSize: false,
     }));
 
     pngBuffer = Buffer.from(await page.screenshot({

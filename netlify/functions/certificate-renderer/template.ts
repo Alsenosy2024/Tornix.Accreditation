@@ -20,16 +20,15 @@ function escapeHtml(s: string): string {
 }
 
 function nameFontPx(name: string): number {
-  // Tuned to sit prominently against the pre-baked headings in the cert
-  // background image. The client's old cqw ladder was calibrated for the
-  // tiny on-screen preview and looked dwarfed at print resolution.
+  // Tuned for the print cert template's heading hierarchy. The user name
+  // should rival the "Tornix Certified Practitioner" pre-baked heading.
   // 1cqw = 24.8 px at the 2480px canvas width.
   const cqw =
-    name.length > 45 ? 3.6 :
-    name.length > 35 ? 4.4 :
-    name.length > 28 ? 5.4 :
-    name.length > 22 ? 6.4 :
-    name.length > 15 ? 7.6 : 9.2;
+    name.length > 45 ? 5.0 :
+    name.length > 35 ? 6.0 :
+    name.length > 28 ? 7.2 :
+    name.length > 22 ? 8.4 :
+    name.length > 15 ? 10.0 : 12.0;
   return cqw * 24.8;
 }
 
