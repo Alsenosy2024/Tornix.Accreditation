@@ -10,11 +10,10 @@
   node_bundler = "esbuild"
   included_files = ["netlify/lib/**"]
 
-# Background function: keep the chromium-min binary archive out of the esbuild
-# bundle (it's huge and Chromium itself is fetched at runtime from the pinned
-# CDN URL). external_node_modules tells esbuild to require() these at runtime.
+# Background function: chromium-min is ESM-only, so we dynamic-import it from
+# inside the handler. esbuild bundles it (and puppeteer-core) into the function
+# zip — the actual Chromium binary is fetched at runtime from the pinned CDN URL.
 [functions."assessment-cert-generate-background"]
-  external_node_modules = ["@sparticuz/chromium-min", "puppeteer-core"]
   included_files = [
     "netlify/lib/**",
     "netlify/functions/certificate-renderer/**",

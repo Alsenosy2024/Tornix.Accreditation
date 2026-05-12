@@ -1,9 +1,10 @@
 import type { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium-min';
 import { fetchBrandingForServer } from './certificate-renderer/branding';
 import { renderCertHtml } from './certificate-renderer/template';
+// `@sparticuz/chromium-min` is ESM-only — load it via dynamic import to avoid
+// the ERR_REQUIRE_ESM crash when esbuild outputs CommonJS. `puppeteer-core` is
+// CJS but we dynamic-import both for symmetry.
 
 // Pinned to match @sparticuz/chromium-min@^137.0.1
 const CHROMIUM_PACK_URL =
@@ -77,6 +78,11 @@ export const handler: Handler = async (event) => {
   let pdfBuffer: Buffer;
   let pngBuffer: Buffer;
   try {
+    const puppeteerMod: any = await import('puppeteer-core');
+    const puppeteer = puppeteerMod.default ?? puppeteerMod;
+    const chromiumMod: any = await import('@sparticuz/chromium-min');
+    const chromium = chromiumMod.default ?? chromiumMod;
+
     const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
     browser = await puppeteer.launch({
       args: [...chromium.args, '--disable-dev-shm-usage'],
