@@ -1135,7 +1135,21 @@ export default function App() {
         style={{ background: 'var(--nav-bg)', borderColor: 'var(--border-hairline)' }}
       >
         <div className="w-full max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-6">
-          <TornixLogo lang={lang} />
+          <button
+            type="button"
+            onClick={() => {
+              // Close every overlay and return to the welcome step
+              setShowSegmentedCourse(false);
+              setShowCourse(false);
+              setShowAdmin(false);
+              if (step !== 'welcome') setStep('welcome');
+            }}
+            className="appearance-none bg-transparent border-0 p-0 cursor-pointer"
+            aria-label={isAr ? 'العودة للصفحة الرئيسية' : 'Back to home'}
+            title={isAr ? 'العودة للصفحة الرئيسية' : 'Back to home'}
+          >
+            <TornixLogo lang={lang} />
+          </button>
 
           {/* Step rail — only when in flow, hidden below md */}
           {step !== 'result' && step !== 'terminated' && (
