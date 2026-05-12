@@ -20,13 +20,16 @@ function escapeHtml(s: string): string {
 }
 
 function nameFontPx(name: string): number {
-  // Mirror the client's cqw ladder at 2480px width (1cqw = 24.8 px).
+  // Tuned to sit prominently against the pre-baked headings in the cert
+  // background image. The client's old cqw ladder was calibrated for the
+  // tiny on-screen preview and looked dwarfed at print resolution.
+  // 1cqw = 24.8 px at the 2480px canvas width.
   const cqw =
-    name.length > 45 ? 2.4 :
-    name.length > 35 ? 3.0 :
-    name.length > 28 ? 3.6 :
-    name.length > 22 ? 4.2 :
-    name.length > 15 ? 5.0 : 6.3;
+    name.length > 45 ? 3.6 :
+    name.length > 35 ? 4.4 :
+    name.length > 28 ? 5.4 :
+    name.length > 22 ? 6.4 :
+    name.length > 15 ? 7.6 : 9.2;
   return cqw * 24.8;
 }
 
