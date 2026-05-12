@@ -28,9 +28,9 @@ const sb = createClient(SUPA_URL, SUPA_KEY, {
   realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
 });
 
-// One pass takes ~20s on Netlify; pace at 30s so we don't pile up
-// concurrent Chromium processes if multiple are in-flight.
-const SPACING_MS = 30_000;
+// Each cert render takes ~20-22s on Netlify, but background functions run
+// concurrently. 8s spacing → ~3 concurrent renders → ~2.1 GB RAM, within limits.
+const SPACING_MS = 8_000;
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has('--dry-run');
