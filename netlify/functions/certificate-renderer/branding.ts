@@ -12,10 +12,13 @@ export interface ServerBranding {
 }
 
 // Tailwind class → CSS font-family. Mirrors AdminPanel's choices.
+// IMPORTANT: use single quotes inside — these values get inlined into a
+// double-quoted style="..." attribute, so embedded double quotes would
+// close the attribute early and break every later declaration.
 const FONT_MAP: Record<string, string> = {
-  'font-montserrat': '"IBM Plex Sans Arabic", sans-serif',
-  'font-sans':       '"IBM Plex Sans Arabic", sans-serif',
-  'font-serif':      '"IBM Plex Sans Arabic", Georgia, serif',
+  'font-montserrat': `'IBM Plex Sans Arabic', sans-serif`,
+  'font-sans':       `'IBM Plex Sans Arabic', sans-serif`,
+  'font-serif':      `'IBM Plex Sans Arabic', Georgia, serif`,
 };
 
 function hexToBase64(v: unknown): string | null {
