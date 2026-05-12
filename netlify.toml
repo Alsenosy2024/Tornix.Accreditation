@@ -10,6 +10,16 @@
   node_bundler = "esbuild"
   included_files = ["netlify/lib/**"]
 
+# Background function: keep the chromium-min binary archive out of the esbuild
+# bundle (it's huge and Chromium itself is fetched at runtime from the pinned
+# CDN URL). external_node_modules tells esbuild to require() these at runtime.
+[functions."assessment-cert-generate-background"]
+  external_node_modules = ["@sparticuz/chromium-min", "puppeteer-core"]
+  included_files = [
+    "netlify/lib/**",
+    "netlify/functions/certificate-renderer/**",
+  ]
+
 # ---- API routes (keep paths the client already calls) ----
 [[redirects]]
   from = "/api/send-email"
@@ -29,6 +39,12 @@
 [[redirects]]
   from = "/api/courses"
   to   = "/.netlify/functions/courses"
+  status = 200
+
+# Cert polling endpoint — must come before the bare /api/assessments rule.
+[[redirects]]
+  from = "/api/assessments/:id/cert"
+  to   = "/.netlify/functions/assessment-cert?id=:id"
   status = 200
 
 [[redirects]]
