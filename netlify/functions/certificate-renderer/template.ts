@@ -20,15 +20,15 @@ function escapeHtml(s: string): string {
 }
 
 function nameFontPx(name: string): number {
-  // Tuned for the print cert template's heading hierarchy. The user name
-  // should rival the "Tornix Certified Practitioner" pre-baked heading.
-  // 1cqw = 24.8 px at the 2480px canvas width.
+  // Tuned to fit the cert template's name slot (≈80% of canvas width) while
+  // remaining the most prominent personalised line. 1cqw = 24.8 px at the
+  // 2480px canvas width.
   const cqw =
-    name.length > 45 ? 5.0 :
-    name.length > 35 ? 6.0 :
-    name.length > 28 ? 7.2 :
-    name.length > 22 ? 8.4 :
-    name.length > 15 ? 10.0 : 12.0;
+    name.length > 45 ? 3.5 :
+    name.length > 35 ? 4.2 :
+    name.length > 28 ? 5.0 :
+    name.length > 22 ? 5.8 :
+    name.length > 15 ? 6.8 : 8.0;
   return cqw * 24.8;
 }
 
@@ -170,9 +170,10 @@ export function renderCertHtml(p: CertParams): string {
     line-height: 1.1;
     margin: 0;
     max-width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: clip;
+    /* Allow wrapping rather than clipping if a name still overflows at its
+       computed size — clipping is worse than a two-line name. */
+    white-space: normal;
+    overflow-wrap: break-word;
     padding-bottom: 0.2em;
   }
   .cert-serial-row {
