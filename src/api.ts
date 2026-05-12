@@ -121,6 +121,38 @@ export const submitAssessment = (a: AssessmentInsert) =>
 export const listAssessments = (): Promise<AssessmentRow[]> =>
   jsonFetch<AssessmentRow[]>('/api/assessments');
 
+// ----- Server-side cert -----------------------------------------
+export type CertStatusKind = 'pending' | 'ready' | 'not_required' | 'failed';
+export interface CertStatus {
+  status: CertStatusKind;
+  pdfUrl?: string | null;
+  pngUrl?: string | null;
+}
+
+export const fetchCertStatus = async (assessmentId: number): Promise<CertStatus> => {
+  // The endpoint returns 202 for pending; jsonFetch treats that as success.
+  return jsonFetch<CertStatus>(`/api/assessments/${assessmentId}/cert`);
+};
+
+export async function waitForCertificate(
+  assessmentId: number,
+  opts: { timeoutMs?: number; intervalMs?: number } = {}
+): Promise<CertStatus> {
+  const { timeoutMs = 30_000, intervalMs = 2_000 } = opts;
+  const deadline = Date.now() + timeoutMs;
+  let last: CertStatus = { status: 'pending' };
+  while (Date.now() < deadline) {
+    try {
+      last = await fetchCertStatus(assessmentId);
+      if (last.status !== 'pending') return last;
+    } catch {
+      // network blip — keep polling
+    }
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  return last;
+}
+
 // ----- Email -----------------------------------------------------
 export const sendAssessmentEmail = (payload: {
   email: string; name: string; score: number; status: 'Passed' | 'Failed'; date: string;

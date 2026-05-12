@@ -36,7 +36,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { generateQuizQuestions, GeneratedQuestion } from './services/geminiService';
-import { fetchBranding, submitAssessment, loginWithGoogle, logout } from './api';
+import { fetchBranding, submitAssessment, loginWithGoogle, logout, fetchCertStatus, waitForCertificate, type CertStatus } from './api';
 import { useSession } from './useSession';
 import { 
   Radar, 
@@ -575,6 +575,10 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [score, setScore] = useState(0);
+  // Server-side certificate flow (Task 8 of plan 2026-05-12)
+  const [assessmentId, setAssessmentId] = useState<number | null>(null);
+  const [serverCert, setServerCert] = useState<CertStatus | null>(null);
+  const [isCertLoading, setIsCertLoading] = useState(false);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
@@ -706,7 +710,7 @@ export default function App() {
                selectedId: ua.selectedId,
            }));
 
-           await submitAssessment({
+           const saved = await submitAssessment({
                userName: user.name || userName || "Student",
                userPhoto: userPhoto || undefined,
                score: finalScore,
@@ -716,6 +720,9 @@ export default function App() {
                answers: condensedAnswers,
                questionsCount: questions.length,
            });
+           // Capture the new row id so the cert download flow can poll for the
+           // server-rendered PDF/PNG.
+           if (saved?.id) setAssessmentId(saved.id);
        } catch(err) {
            console.error("Failed to save assessment", err);
        }
@@ -1074,7 +1081,10 @@ export default function App() {
     }
   };
 
-  const downloadCertificatePNG = async () => {
+  // Legacy client-side path — used as a graceful fallback when the server cert
+  // isn't ready yet (e.g. polling timed out, or for assessments submitted before
+  // the server pipeline was deployed).
+  const downloadCertificatePNG_clientFallback = async () => {
     const canvas = await generateCanvas();
     if (!canvas) return;
     const link = document.createElement('a');
@@ -1083,19 +1093,67 @@ export default function App() {
     link.click();
   };
 
-  const downloadCertificatePDF = async () => {
+  const downloadCertificatePDF_clientFallback = async () => {
     const canvas = await generateCanvas();
     if (!canvas) return;
     const imgData = canvas.toDataURL('image/png', 1.0);
-    // A4 Portrait: 210x297 mm
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
     pdf.save(`Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.pdf`);
   };
+
+  // Server-side cert download. Prefers the stored URL; falls back to client render.
+  const triggerBrowserDownload = (url: string, filename: string) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.target = '_blank';     // some browsers ignore `download` on cross-origin URLs
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const downloadCert = async (format: 'pdf' | 'png') => {
+    const filename = `Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.${format}`;
+    const urlOf = (s: CertStatus) => (format === 'pdf' ? s.pdfUrl : s.pngUrl);
+
+    // 1. Already-resolved server URL? Use it.
+    if (serverCert?.status === 'ready') {
+      const url = urlOf(serverCert);
+      if (url) { triggerBrowserDownload(url, filename); return; }
+    }
+
+    // 2. We have an assessmentId — fetch / poll the server.
+    if (assessmentId) {
+      setIsCertLoading(true);
+      try {
+        let s = await fetchCertStatus(assessmentId);
+        if (s.status === 'pending') s = await waitForCertificate(assessmentId, { timeoutMs: 30_000 });
+        setServerCert(s);
+        if (s.status === 'ready') {
+          const url = urlOf(s);
+          if (url) { triggerBrowserDownload(url, filename); return; }
+        }
+        if (s.status === 'not_required') {
+          console.warn('Cert not generated — score below passing threshold');
+          return;
+        }
+        // pending after timeout OR failed — fall through to client render
+      } catch (e) {
+        console.warn('Server cert lookup failed, falling back to client render:', e);
+      } finally {
+        setIsCertLoading(false);
+      }
+    }
+
+    // 3. Fallback — client-side render.
+    if (format === 'pdf') await downloadCertificatePDF_clientFallback();
+    else await downloadCertificatePNG_clientFallback();
+  };
+
+  const downloadCertificatePNG = () => downloadCert('png');
+  const downloadCertificatePDF = () => downloadCert('pdf');
 
   const shareToLinkedIn = () => {
     const certName = "Tornix Certified Professional";
@@ -1767,11 +1825,13 @@ export default function App() {
                     <div className="px-7 md:px-10 pb-8">
                       {score >= 60 ? (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <button onClick={downloadCertificatePNG} className="btn btn-primary btn-lg">
-                            <Download className="w-4 h-4" /> {isAr ? 'تنزيل صورة' : 'Download PNG'}
+                          <button onClick={downloadCertificatePNG} disabled={isCertLoading} className="btn btn-primary btn-lg">
+                            {isCertLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            {isAr ? 'تنزيل صورة' : 'Download PNG'}
                           </button>
-                          <button onClick={downloadCertificatePDF} className="btn btn-secondary btn-lg">
-                            <Download className="w-4 h-4" /> {isAr ? 'تنزيل PDF' : 'Download PDF'}
+                          <button onClick={downloadCertificatePDF} disabled={isCertLoading} className="btn btn-secondary btn-lg">
+                            {isCertLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            {isAr ? 'تنزيل PDF' : 'Download PDF'}
                           </button>
                           <button onClick={shareToLinkedIn} className="btn btn-outline btn-lg">
                             {isAr ? 'إضافة إلى LinkedIn' : 'Add to LinkedIn'}
