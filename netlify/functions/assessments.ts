@@ -64,6 +64,36 @@ export const handler: Handler = async (event) => {
       const status = /row-level security/i.test(error.message) ? 403 : 500;
       return { statusCode: status, body: JSON.stringify({ error: error.message }) };
     }
+
+    // Fire-and-forget: kick off server-side certificate generation for passing
+    // assessments. We don't await the response (background functions return 202
+    // immediately), but we DO race a short timer so the TCP request flies before
+    // Netlify reaps this handler. If the background function never fires (network
+    // blip), the row stays with cert_storage_path=NULL and the polling endpoint
+    // reports `pending`; the client falls back to the legacy client-side render.
+    if (Number(body.score ?? 0) >= 60) {
+      const base = process.env.URL || process.env.DEPLOY_PRIME_URL || '';
+      const secret = process.env.CERT_RENDERER_SECRET || '';
+      if (base && secret) {
+        const bgUrl = `${base}/.netlify/functions/assessment-cert-generate-background`;
+        try {
+          await Promise.race([
+            fetch(bgUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${secret}`,
+              },
+              body: JSON.stringify({ assessmentId: data!.id }),
+            }).catch((err) => console.error('[cert-trigger] fetch failed:', err)),
+            new Promise((r) => setTimeout(r, 200)),
+          ]);
+        } catch {
+          // never block the response on this
+        }
+      }
+    }
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
