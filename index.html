@@ -4,10 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#7D42C6" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Tornix Accreditation — مركز الاعتماد المهني الرسمي لمنصة تورنكس. تقييم مدعوم بالذكاء الاصطناعي وشهادة معتمدة." />
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <title>Tornix Accreditation — التقييم المهني المعتمد</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('tornix-theme');
+          var theme = (stored === 'dark' || stored === 'light') ? stored : null;
+          if (!theme) {
+            theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+          }
+          if (theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

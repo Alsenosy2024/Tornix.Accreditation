@@ -3,6 +3,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { CourseViewer } from './components/CourseViewer';
 import { SegmentedCourseViewer } from './components/SegmentedCourseViewer';
 import { Onboarding } from './components/Onboarding';
+import { ThemeToggle } from './components/ThemeToggle';
 import {
   Play,
   CheckCircle,
@@ -1185,6 +1186,7 @@ export default function App() {
             >
               {isAr ? 'دورة TCP' : 'TCP Course'}
             </button>
+            <ThemeToggle lang={lang} />
             <div className="inline-flex items-center p-0.5 rounded-full" style={{ background: 'var(--border-hairline)' }}>
               <button
                 onClick={() => setLang('ar')}
