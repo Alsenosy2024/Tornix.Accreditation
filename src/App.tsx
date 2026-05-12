@@ -55,8 +55,6 @@ import {
 } from 'recharts';
 import emailjs from '@emailjs/browser';
 
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { GoogleGenAI } from '@google/genai';
 
 // --- Types ---
@@ -601,7 +599,6 @@ export default function App() {
   const [showReview, setShowReview] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
-  const certRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
      if (user) {
@@ -1019,90 +1016,7 @@ export default function App() {
     setEssayAnswer('');
   };
 
-  const generateCanvas = async () => {
-    if (!certRef.current) return null;
-    
-    // Create a deep clone
-    const clone = certRef.current.cloneNode(true) as HTMLElement;
-    
-    // Remove fixed/relative positioning that might interfere
-    clone.className = 'bg-white';
-    clone.style.position = 'absolute';
-    clone.style.left = '0';
-    clone.style.top = '0';
-    clone.style.width = '2480px';
-    clone.style.height = '3508px';
-    clone.style.zIndex = '-9999';
-    clone.style.visibility = 'visible';
-    clone.style.overflow = 'hidden';
-    
-    // Crucially: Fix Container Query units into absolute pixels for capture
-    // html2canvas doesn't support cqw units well
-    const fixCQW = (el: HTMLElement) => {
-      const cqwToPx = (val: string) => {
-        if (!val || !val.includes('cqw')) return val;
-        const num = parseFloat(val);
-        // Base width is 2480px, so 1cqw = 24.8px
-        return `${num * 24.8}px`;
-      };
-      
-      if (el.style.fontSize) el.style.fontSize = cqwToPx(el.style.fontSize);
-      
-      Array.from(el.children).forEach(child => fixCQW(child as HTMLElement));
-    };
-    fixCQW(clone);
-
-    document.body.appendChild(clone);
-    
-    // Give time for images/fonts to render
-    await new Promise(r => setTimeout(r, 1000));
-    
-    try {
-      const canvas = await html2canvas(clone, { 
-        scale: 1, 
-        useCORS: true, 
-        allowTaint: true,
-        logging: false,
-        width: 2480,
-        height: 3508,
-        windowWidth: 2480,
-        windowHeight: 3508,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0
-      });
-      return canvas;
-    } catch(err) {
-      console.error("Failed generating image.", err);
-      return null;
-    } finally {
-      document.body.removeChild(clone);
-    }
-  };
-
-  // Legacy client-side path — used as a graceful fallback when the server cert
-  // isn't ready yet (e.g. polling timed out, or for assessments submitted before
-  // the server pipeline was deployed).
-  const downloadCertificatePNG_clientFallback = async () => {
-    const canvas = await generateCanvas();
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.download = `Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.png`;
-    link.href = canvas.toDataURL('image/png', 1.0);
-    link.click();
-  };
-
-  const downloadCertificatePDF_clientFallback = async () => {
-    const canvas = await generateCanvas();
-    if (!canvas) return;
-    const imgData = canvas.toDataURL('image/png', 1.0);
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
-    pdf.save(`Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.pdf`);
-  };
-
-  // Server-side cert download. Prefers the stored URL; falls back to client render.
+  // Server-side cert download. Resolves the stored URL via the polling endpoint.
   const triggerBrowserDownload = (url: string, filename: string) => {
     const a = document.createElement('a');
     a.href = url;
@@ -1118,38 +1032,40 @@ export default function App() {
     const filename = `Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.${format}`;
     const urlOf = (s: CertStatus) => (format === 'pdf' ? s.pdfUrl : s.pngUrl);
 
-    // 1. Already-resolved server URL? Use it.
+    // Already-resolved server URL? Use it.
     if (serverCert?.status === 'ready') {
       const url = urlOf(serverCert);
       if (url) { triggerBrowserDownload(url, filename); return; }
     }
 
-    // 2. We have an assessmentId — fetch / poll the server.
-    if (assessmentId) {
-      setIsCertLoading(true);
-      try {
-        let s = await fetchCertStatus(assessmentId);
-        if (s.status === 'pending') s = await waitForCertificate(assessmentId, { timeoutMs: 30_000 });
-        setServerCert(s);
-        if (s.status === 'ready') {
-          const url = urlOf(s);
-          if (url) { triggerBrowserDownload(url, filename); return; }
-        }
-        if (s.status === 'not_required') {
-          console.warn('Cert not generated — score below passing threshold');
-          return;
-        }
-        // pending after timeout OR failed — fall through to client render
-      } catch (e) {
-        console.warn('Server cert lookup failed, falling back to client render:', e);
-      } finally {
-        setIsCertLoading(false);
-      }
+    // Otherwise fetch / poll. assessmentId is set after submission (current
+    // session) or — for returning users — needs to come from the assessments
+    // list lookup. If we don't have one, there's nothing we can do here.
+    if (!assessmentId) {
+      console.warn('Cert download: no assessmentId in scope; cannot fetch server cert.');
+      return;
     }
 
-    // 3. Fallback — client-side render.
-    if (format === 'pdf') await downloadCertificatePDF_clientFallback();
-    else await downloadCertificatePNG_clientFallback();
+    setIsCertLoading(true);
+    try {
+      let s = await fetchCertStatus(assessmentId);
+      if (s.status === 'pending') s = await waitForCertificate(assessmentId, { timeoutMs: 30_000 });
+      setServerCert(s);
+      if (s.status === 'ready') {
+        const url = urlOf(s);
+        if (url) { triggerBrowserDownload(url, filename); return; }
+      }
+      if (s.status === 'not_required') {
+        console.warn('Cert not generated — score below passing threshold');
+        return;
+      }
+      // pending after timeout OR failed
+      console.error('Cert is still pending after polling. Try again in a minute.');
+    } catch (e) {
+      console.error('Cert lookup failed:', e);
+    } finally {
+      setIsCertLoading(false);
+    }
   };
 
   const downloadCertificatePNG = () => downloadCert('png');
@@ -2014,102 +1930,8 @@ export default function App() {
         />
       )}
 
-      {/* --- Certificate Template --- */}
-      <div className="print-only" ref={certRef} style={{ containerType: 'inline-size' }}>
-        {certBg ? (
-          <div className="relative w-full h-full flex items-center justify-center bg-white overflow-hidden">
-            <img crossOrigin="anonymous" src={certBg} className="absolute inset-0 w-full h-full object-contain" alt="Certificate Background" />
-            <div className="absolute inset-x-0 w-full text-center z-10 flex flex-col items-center px-[10%]" style={{ top: `${nameY}%`, transform: 'translateY(-50%)' }}>
-               <h1
-                 className={`font-bold text-slate-900 leading-tight m-0 ${fontFamily}`}
-                 style={{
-                   color: nameColor,
-                   fontSize: userName.length > 45 ? '2.4cqw'
-                            : userName.length > 35 ? '3cqw'
-                            : userName.length > 28 ? '3.6cqw'
-                            : userName.length > 22 ? '4.2cqw'
-                            : userName.length > 15 ? '5cqw'
-                            : '6.3cqw',
-                   maxWidth: '100%',
-                   whiteSpace: 'nowrap',
-                   overflow: 'hidden',
-                   textOverflow: 'clip',
-                   paddingBottom: '0.2em'
-                 }}
-               >
-                 {userName}
-               </h1>
-            </div>
-            <div className="absolute inset-x-0 w-full text-center pointer-events-none z-10" style={{ top: `${serialY}%`, transform: 'translateY(-50%)' }}>
-               <p className={`font-bold tracking-widest leading-tight m-0 p-0 ${fontFamily}`} style={{ color: serialColor, fontSize: `${(serialFontSize / 794) * 100}cqw` }}>{generateSerial()}</p>
-            </div>
-          </div>
-        ) : (
-          <div
-            className="h-full w-full flex flex-col items-stretch justify-between relative"
-            style={{
-              background: '#FFFFFF',
-              padding: '120px 96px',
-              color: '#1A1A2E',
-              fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
-            }}
-          >
-            {/* Subtle hairline rules — no decorative stripes */}
-            <div style={{ position: 'absolute', insetInline: 96, top: 60, height: 1, background: '#ECE8FF' }} />
-
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <img crossOrigin="anonymous" src={currentLogo} alt="" referrerPolicy="no-referrer" style={{ width: 96, height: 96, objectFit: 'contain' }} />
-                <div>
-                  <div style={{ fontSize: 14, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#64748B', fontWeight: 600 }}>Tornix</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: '#0F172A' }}>Accreditation Center</div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#64748B', fontWeight: 600 }}>Serial</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', fontFeatureSettings: '"tnum"' }}>{generateSerial()}</div>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28 }}>
-              <div style={{ fontSize: 18, letterSpacing: '0.32em', textTransform: 'uppercase', color: '#7D42C6', fontWeight: 700 }}>
-                Certified Professional
-              </div>
-              <div style={{ fontSize: 18, color: '#64748B' }}>This is to certify that</div>
-              <h1 style={{ fontSize: 64, fontWeight: 700, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>
-                {userName}
-              </h1>
-              <p style={{ fontSize: 20, lineHeight: 1.6, color: '#4D4D4D', maxWidth: 1400, margin: '0 auto' }}>
-                has demonstrated professional proficiency in the Tornix integrated project management environment,
-                attaining a cumulative assessment score of <strong style={{ color: '#0F172A' }}>{score}%</strong>.
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', borderTop: '1px solid #ECE8FF', paddingTop: 36 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                {userPhoto && (
-                  <img crossOrigin="anonymous" src={userPhoto} alt="" referrerPolicy="no-referrer" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 16, border: '1px solid #ECE8FF' }} />
-                )}
-                <div>
-                  <div style={{ fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#64748B', fontWeight: 600 }}>Date issued</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#0F172A' }}>{new Date().toLocaleDateString()}</div>
-                  <div style={{ fontSize: 14, color: '#64748B', marginTop: 6 }}>{userEmail}</div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#64748B', fontWeight: 600 }}>Issuing authority</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#0F172A' }}>Tornix Global · Verified</div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 14px', borderRadius: 9999, background: '#ECE8FF', color: '#472572', fontWeight: 600, fontSize: 13 }}>
-                  AI-validated session
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Certificate template removed — server-side renderer in
+          netlify/functions/certificate-renderer is now the source of truth. */}
     </div>
   );
 }
