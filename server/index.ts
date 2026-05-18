@@ -8,6 +8,10 @@ import { coursesRouter } from "./routes/courses";
 import { settingsBrandingRouter } from "./routes/settings-branding";
 import { assessmentsRouter } from "./routes/assessments";
 import { assessmentCertRouter } from "./routes/assessment-cert";
+import { segmentedCoursesRouter } from "./routes/segmented-courses";
+import { progressRouter } from "./routes/progress";
+import { transcriptRouter } from "./routes/transcript";
+import { sendEmailRouter } from "./routes/send-email";
 import { storage } from "./storage";
 
 export interface BuildAppOpts {
@@ -29,6 +33,10 @@ export function buildApp(opts: BuildAppOpts = {}): Express {
   app.use(settingsBrandingRouter({ db }));
   app.use(assessmentsRouter({ db }));
   app.use(assessmentCertRouter({ db, storage }));
+  app.use(segmentedCoursesRouter({ db }));
+  app.use(progressRouter({ db }));
+  app.use(transcriptRouter({}));
+  app.use(sendEmailRouter({}));
   return app;
 }
 

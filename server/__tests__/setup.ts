@@ -16,7 +16,10 @@ function adminSql(sql: string) {
   execSync(`psql -d postgres -c "${sql.replace(/"/g, '\\"')}"`, { stdio: 'pipe' });
 }
 function testSqlFile(path: string) {
-  execSync(`psql -d "${testDbName}" -f "${path}"`, { stdio: 'pipe' });
+  // Use ON_ERROR_STOP=0 so non-fatal errors from Supabase-only constructs
+  // (RLS policies with the "authenticated" role, uuid vs bigint FK in 001)
+  // do not abort the entire file. Table/index creation is idempotent.
+  execSync(`psql --set ON_ERROR_STOP=0 -d "${testDbName}" -f "${path}"`, { stdio: 'pipe' });
 }
 
 beforeAll(() => {
@@ -28,4 +31,7 @@ beforeAll(() => {
   testSqlFile('db/migrations/002_cert_columns.sql');
   testSqlFile('db/migrations/003_cert_jobs.sql');
   testSqlFile('db/migrations/004_oauth_state_payload.sql');
+  // EC2-compatible segment_progress table (migration 001 used uuid/Supabase RLS
+  // which fail on EC2; this migration creates the table with bigint user_id).
+  testSqlFile('db/migrations/005_segment_progress.sql');
 });
