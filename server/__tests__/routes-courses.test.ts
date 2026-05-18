@@ -60,4 +60,19 @@ describe("routes/courses", () => {
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM courses");
     expect(rows[0].n).toBe(0);
   });
+
+  it('PUT /api/courses/:id returns 400 for non-numeric id', async () => {
+    const app = buildApp({ poolOverride: pool });
+    const r = await request(app).put('/api/courses/foo')
+      .set('Authorization', `Bearer ${await admin()}`)
+      .send({ title: 'X', chapters: [] });
+    expect(r.status).toBe(400);
+  });
+
+  it('DELETE /api/courses/:id returns 400 for non-numeric id', async () => {
+    const app = buildApp({ poolOverride: pool });
+    const r = await request(app).delete('/api/courses/foo')
+      .set('Authorization', `Bearer ${await admin()}`);
+    expect(r.status).toBe(400);
+  });
 });

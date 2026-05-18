@@ -2,6 +2,11 @@ import { Router } from "express";
 import { requireAuth, requireAdmin } from "../middleware";
 import type { Db } from "../db";
 
+function parseId(raw: string): number | null {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export function coursesRouter(ctx: { db: Db }) {
   const r = Router();
 
@@ -25,18 +30,22 @@ export function coursesRouter(ctx: { db: Db }) {
   });
 
   r.put("/api/courses/:id", requireAuth, requireAdmin, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return res.status(400).json({ error: "invalid id" });
     const { title, video_url, chapters } = req.body ?? {};
     const { rows } = await ctx.db.q(
       `UPDATE courses SET title = $2, video_url = $3, chapters = $4::jsonb
-       WHERE id = $1::bigint RETURNING id::int AS id, title, video_url, chapters, created_at`,
-      [req.params.id, title, video_url ?? null, JSON.stringify(chapters ?? [])],
+       WHERE id = $1 RETURNING id::int AS id, title, video_url, chapters, created_at`,
+      [id, title, video_url ?? null, JSON.stringify(chapters ?? [])],
     );
     if (!rows.length) return res.status(404).end();
     res.json(rows[0]);
   });
 
   r.delete("/api/courses/:id", requireAuth, requireAdmin, async (req, res) => {
-    await ctx.db.q(`DELETE FROM courses WHERE id = $1::bigint`, [req.params.id]);
+    const id = parseId(req.params.id);
+    if (id === null) return res.status(400).json({ error: "invalid id" });
+    await ctx.db.q(`DELETE FROM courses WHERE id = $1`, [id]);
     res.status(204).end();
   });
 
