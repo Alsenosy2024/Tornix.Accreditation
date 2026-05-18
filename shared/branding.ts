@@ -21,11 +21,17 @@ const FONT_MAP: Record<string, string> = {
   'font-serif':      `'IBM Plex Sans Arabic', Georgia, serif`,
 };
 
-function hexToBase64(v: unknown): string | null {
-  if (!v || typeof v !== 'string') return null;
-  const hex = v.startsWith('\\x') ? v.slice(2) : v;
-  if (!hex) return null;
-  return Buffer.from(hex, 'hex').toString('base64');
+// pg returns `bytea` as a Buffer by default; if that ever changes (or someone
+// pipes the value through JSON first) we may also see `\xHEX` strings. Handle both.
+function byteaToBase64(v: unknown): string | null {
+  if (!v) return null;
+  if (Buffer.isBuffer(v)) return v.toString('base64');
+  if (typeof v === 'string') {
+    const hex = v.startsWith('\\x') ? v.slice(2) : v;
+    if (!hex) return null;
+    return Buffer.from(hex, 'hex').toString('base64');
+  }
+  return null;
 }
 
 function dataUrl(b64: string | null, mime: string | null | undefined): string | null {
@@ -44,8 +50,8 @@ export async function fetchBrandingForServer(db: Db): Promise<ServerBranding> {
   const row = (rows[0] ?? {}) as Record<string, any>;
   const meta = (row.data || {}) as Record<string, any>;
 
-  const logoDataUrl   = dataUrl(hexToBase64(row.logo_bytes),   row.logo_mime)   ?? (meta.logoUrl   ?? null);
-  const certBgDataUrl = dataUrl(hexToBase64(row.cert_bg_bytes), row.cert_bg_mime) ?? (meta.certBgUrl ?? null);
+  const logoDataUrl   = dataUrl(byteaToBase64(row.logo_bytes),   row.logo_mime)   ?? (meta.logoUrl   ?? null);
+  const certBgDataUrl = dataUrl(byteaToBase64(row.cert_bg_bytes), row.cert_bg_mime) ?? (meta.certBgUrl ?? null);
 
   return {
     logoDataUrl,
