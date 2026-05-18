@@ -9,7 +9,7 @@ interface WhisperSegment { start: number; end: number; text: string }
 // Load the static whisper transcript data bundled in the repo.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const dataPath = join(__dirname, '../../netlify/functions/transcript-data/whisper_segments.json');
+const dataPath = join(__dirname, '../data/whisper_segments.json');
 const RAW: unknown = JSON.parse(readFileSync(dataPath, 'utf-8'));
 const WHISPER_SEGMENTS: WhisperSegment[] = Array.isArray(RAW)
   ? (RAW as WhisperSegment[])
