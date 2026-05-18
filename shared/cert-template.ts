@@ -107,7 +107,7 @@ function modeBlankTemplate(p: CertParams): string {
           ${photo}
           <div>
             <div style="font-size:28px; letter-spacing:.18em; text-transform:uppercase; color:#64748B; font-weight:600;">Date issued</div>
-            <div style="font-size:42px; font-weight:700; color:#0F172A;">${date}</div>
+            <div style="font-size:42px; font-weight:700; color:#0F172A;">${escapeHtml(date)}</div>
             <div style="font-size:30px; color:#64748B; margin-top:12px;">${escapeHtml(p.userEmail)}</div>
           </div>
         </div>

@@ -43,8 +43,6 @@ export async function renderAndUpload(ctx: RenderCtx, assessmentId: number): Pro
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--no-zygote',
-      '--single-process',
     ],
     defaultViewport: { width: 2480, height: 3508, deviceScaleFactor: 1 },
     headless: true,
