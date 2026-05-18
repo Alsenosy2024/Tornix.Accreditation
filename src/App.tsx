@@ -566,7 +566,7 @@ export default function App() {
   const { logo: currentLogo, badge: currentBadge, certBg, nameY, serialY, fontFamily, nameColor, serialColor, serialFontSize } = useBranding();
   
   // Auth state — replaces useAuthState(firebase auth) with our cookie/JWT session.
-  const { user } = useSession();
+  const { user, signOut } = useSession();
   const authLoading = false; // loading state removed (JWT is synchronous)
   
   const [step, setStep] = useState<'welcome' | 'camera_check' | 'orientation' | 'quiz' | 'result' | 'terminated'>('welcome');
@@ -1174,6 +1174,15 @@ export default function App() {
             >
               {isAr ? 'دورة TCP' : 'TCP Course'}
             </button>
+            {user && (
+              <button
+                onClick={signOut}
+                className="hidden sm:inline-flex btn btn-ghost btn-sm"
+                title={isAr ? 'تسجيل الخروج' : 'Sign out'}
+              >
+                {isAr ? 'تسجيل الخروج' : 'Sign out'}
+              </button>
+            )}
             <ThemeToggle lang={lang} />
             <div className="inline-flex items-center p-0.5 rounded-full" style={{ background: 'var(--border-hairline)' }}>
               <button
