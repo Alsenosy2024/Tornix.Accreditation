@@ -7,6 +7,8 @@ import { meRouter } from "./routes/me";
 import { coursesRouter } from "./routes/courses";
 import { settingsBrandingRouter } from "./routes/settings-branding";
 import { assessmentsRouter } from "./routes/assessments";
+import { assessmentCertRouter } from "./routes/assessment-cert";
+import { storage } from "./storage";
 
 export interface BuildAppOpts {
   poolOverride?: Pool;
@@ -26,6 +28,7 @@ export function buildApp(opts: BuildAppOpts = {}): Express {
   app.use(coursesRouter({ db }));
   app.use(settingsBrandingRouter({ db }));
   app.use(assessmentsRouter({ db }));
+  app.use(assessmentCertRouter({ db, storage }));
   return app;
 }
 
