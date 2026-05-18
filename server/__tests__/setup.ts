@@ -64,4 +64,5 @@ beforeAll(() => {
   psqlFile(testDbName, 'db/schema.sql');
   psqlFile(testDbName, 'db/migrations/001_segmented_courses.sql');
   psqlFile(testDbName, 'db/migrations/002_cert_columns.sql');
+  psqlFile(testDbName, 'db/migrations/004_oauth_state_payload.sql');
 });
