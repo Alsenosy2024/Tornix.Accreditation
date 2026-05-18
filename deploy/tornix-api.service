@@ -1,0 +1,20 @@
+[Unit]
+Description=Tornix Accreditation API
+After=network.target postgresql.service minio.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=tornix
+Group=tornix
+WorkingDirectory=/opt/tornix
+EnvironmentFile=/opt/tornix/.env.local
+ExecStart=/usr/bin/node --enable-source-maps /opt/tornix/server-dist/server/index.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tornix-api
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=Tornix Accreditation Cert Worker
+After=network.target postgresql.service minio.service tornix-api.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=tornix
+Group=tornix
+WorkingDirectory=/opt/tornix
+EnvironmentFile=/opt/tornix/.env.local
+ExecStart=/usr/bin/node --enable-source-maps /opt/tornix/server-dist/worker/index.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tornix-cert-worker
+
+[Install]
+WantedBy=multi-user.target
