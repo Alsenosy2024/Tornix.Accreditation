@@ -1,8 +1,8 @@
-import { supabase } from './supabase';
+import { getStoredToken } from './useSession';
 
-// Thin fetch wrapper for the Netlify Function backend.
-// Auth: pulls the current Supabase access token and forwards it as Bearer.
-// All functions then verify it via supabase.auth.getUser(token) and rely on RLS.
+// Thin fetch wrapper for the Express backend.
+// Auth: pulls the JWT from localStorage and forwards it as Bearer.
+// All functions then verify it server-side.
 
 export interface SessionUser {
   uid: string;             // auth.users.id (UUID)
@@ -12,13 +12,9 @@ export interface SessionUser {
   isAdmin: boolean;
 }
 
-let cachedAuthToken: string | null = null;
-
-async function authHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const tok = data.session?.access_token;
-  if (tok) cachedAuthToken = tok;
-  return tok ? { Authorization: `Bearer ${tok}` } : {};
+function authHeaders(): Record<string, string> {
+  const t = getStoredToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
 async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
@@ -26,7 +22,7 @@ async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...(await authHeaders()),
+      ...authHeaders(),
       ...(init?.headers || {}),
     },
   });
@@ -53,14 +49,12 @@ export async function fetchMe(): Promise<SessionUser | null> {
 }
 
 export function loginWithGoogle(redirect: string = window.location.origin): void {
-  void supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: redirect },
-  });
+  window.location.href = `/api/auth/google?next=${encodeURIComponent(redirect)}`;
 }
 
 export async function logout(): Promise<void> {
-  await supabase.auth.signOut();
+  const KEY = 'tornix.jwt';
+  try { localStorage.removeItem(KEY); } catch {}
 }
 
 // ----- Settings (branding) ---------------------------------------
@@ -229,13 +223,13 @@ export const upsertProgress = (payload: {
 }): Promise<{ ok: true }> =>
   jsonFetch('/api/progress', { method: 'POST', body: JSON.stringify(payload) });
 
-// Beacon-friendly variant: synchronous, uses cached token — safe to call in `beforeunload`.
-// Returns true if accepted by the browser, false if no cached token is available.
-// The token cache is warmed by every authHeaders() call (i.e. every normal API request).
+// Beacon-friendly variant: synchronous, reads token directly from localStorage.
+// Safe to call in `beforeunload`.
+// Returns true if accepted by the browser, false if no token is available.
 export function beaconProgress(payload: {
   segmentId: number; clipKind: ClipKind; positionSec: number; completedAt?: string;
 }): boolean {
-  const tok = cachedAuthToken;
+  const tok = getStoredToken();
   if (!tok) return false;
   const blob = new Blob([JSON.stringify({ ...payload, _token: tok })], { type: 'application/json' });
   return navigator.sendBeacon('/api/progress', blob);
