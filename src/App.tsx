@@ -566,7 +566,8 @@ export default function App() {
   const { logo: currentLogo, badge: currentBadge, certBg, nameY, serialY, fontFamily, nameColor, serialColor, serialFontSize } = useBranding();
   
   // Auth state — replaces useAuthState(firebase auth) with our cookie/JWT session.
-  const [user, authLoading] = useSession();
+  const { user } = useSession();
+  const authLoading = false; // loading state removed (JWT is synchronous)
   
   const [step, setStep] = useState<'welcome' | 'camera_check' | 'orientation' | 'quiz' | 'result' | 'terminated'>('welcome');
   const [questions, setQuestions] = useState<Question[]>([]);

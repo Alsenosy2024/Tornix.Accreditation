@@ -1,47 +1,90 @@
-import { useEffect, useState } from 'react';
-import { supabase } from './supabase';
+import { useEffect, useState, useCallback } from 'react';
 import type { SessionUser } from './api';
 
-const ADMIN_EMAILS = new Set([
-  'ahmed0ibrahim@gmail.com',
-  'ahmedzeroibrahim@gmail.com',
-  'karm92000@gmail.com',
-]);
+const KEY = 'tornix.jwt';
 
-function toAppUser(u: import('@supabase/supabase-js').User | undefined | null): SessionUser | null {
-  if (!u || !u.email) return null;
-  const email = u.email.toLowerCase();
+/** Decoded JWT payload fields we care about. */
+export interface Session {
+  userId: string;
+  email: string;
+  name: string | null;
+  picture: string | null;
+  isAdmin: boolean;
+  exp: number;
+}
+
+function decodeBase64Url(s: string): string {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+  }
+  return atob(s.replace(/-/g, '+').replace(/_/g, '/'));
+}
+
+function decodeToken(token: string): Session | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = JSON.parse(decodeBase64Url(parts[1]));
+    if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()) return null;
+    return {
+      userId: String(payload.sub),
+      email: String(payload.email),
+      name: payload.name ?? null,
+      picture: payload.picture ?? null,
+      isAdmin: !!payload.is_admin,
+      exp: payload.exp,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Map JWT Session → legacy SessionUser shape (used by the rest of App.tsx). */
+function toSessionUser(s: Session): SessionUser {
   return {
-    uid: u.id,
-    email,
-    name: (u.user_metadata?.full_name as string)
-      ?? (u.user_metadata?.name as string)
-      ?? null,
-    photo: (u.user_metadata?.avatar_url as string)
-      ?? (u.user_metadata?.picture as string)
-      ?? null,
-    isAdmin: ADMIN_EMAILS.has(email),
+    uid: s.userId,
+    email: s.email,
+    name: s.name,
+    photo: s.picture,
+    isAdmin: s.isAdmin,
   };
 }
 
-export function useSession(): [SessionUser | null, boolean] {
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loading, setLoading] = useState(true);
+function loadUser(): SessionUser | null {
+  if (typeof window === 'undefined') return null;
+  const t = localStorage.getItem(KEY);
+  if (!t) return null;
+  const s = decodeToken(t);
+  if (!s) { localStorage.removeItem(KEY); return null; }
+  return toSessionUser(s);
+}
+
+export function useSession() {
+  const [user, setUser] = useState<SessionUser | null>(loadUser);
 
   useEffect(() => {
-    let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return;
-      setUser(toAppUser(data.session?.user));
-      setLoading(false);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (cancelled) return;
-      setUser(toAppUser(session?.user));
-      setLoading(false);
-    });
-    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+    if (location.hash.startsWith('#token=')) {
+      const t = location.hash.slice(7);
+      localStorage.setItem(KEY, t);
+      history.replaceState(null, '', location.pathname + location.search);
+      const s = decodeToken(t);
+      if (s) setUser(toSessionUser(s));
+      else { localStorage.removeItem(KEY); setUser(null); }
+    }
   }, []);
 
-  return [user, loading];
+  const signIn = useCallback((next: string = location.pathname) => {
+    location.href = `/api/auth/google?next=${encodeURIComponent(next)}`;
+  }, []);
+
+  const signOut = useCallback(() => {
+    localStorage.removeItem(KEY);
+    setUser(null);
+  }, []);
+
+  return { user, signIn, signOut };
+}
+
+export function getStoredToken(): string | null {
+  return typeof window !== 'undefined' ? localStorage.getItem(KEY) : null;
 }
