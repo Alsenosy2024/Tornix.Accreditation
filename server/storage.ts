@@ -1,10 +1,17 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Readable } from 'node:stream';
 import { env } from './env.js';
 
 export interface StorageOpts {
   endpoint: string; region: string; forcePathStyle: boolean;
   bucket: string; accessKey: string; secretKey: string;
+}
+
+export interface StorageObject {
+  body: Readable;
+  contentType: string;
+  contentLength?: number;
 }
 
 export function makeStorage(opts: StorageOpts) {
@@ -21,6 +28,17 @@ export function makeStorage(opts: StorageOpts) {
       await client.send(new PutObjectCommand({
         Bucket: opts.bucket, Key: key, Body: body, ContentType: contentType,
       }));
+    },
+    async get(key: string): Promise<StorageObject> {
+      const out = await client.send(new GetObjectCommand({
+        Bucket: opts.bucket, Key: key,
+      }));
+      if (!out.Body) throw new Error(`s3: no body for ${key}`);
+      return {
+        body: out.Body as Readable,
+        contentType: out.ContentType || 'application/octet-stream',
+        contentLength: out.ContentLength,
+      };
     },
     async presignedGet(key: string, ttlSeconds = 60 * 60) {
       return getSignedUrl(client, new GetObjectCommand({

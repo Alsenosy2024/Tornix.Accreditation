@@ -147,6 +147,33 @@ export async function waitForCertificate(
   return last;
 }
 
+// Cert URLs are API-relative and require the Bearer token, so a plain <a href>
+// download won't work. Fetch the bytes ourselves, then trigger a download from a blob URL.
+export async function downloadCertFile(
+  assessmentId: number,
+  format: 'pdf' | 'png',
+  filename: string,
+): Promise<void> {
+  const url = `/api/assessments/${assessmentId}/cert/file?format=${format}`;
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Cert download failed: ${res.status} ${text || res.statusText}`);
+  }
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 5_000);
+  }
+}
+
 // ----- Email -----------------------------------------------------
 export const sendAssessmentEmail = (payload: {
   email: string; name: string; score: number; status: 'Passed' | 'Failed'; date: string;

@@ -36,7 +36,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { generateQuizQuestions, GeneratedQuestion } from './services/geminiService';
-import { fetchBranding, submitAssessment, loginWithGoogle, logout, fetchCertStatus, waitForCertificate, type CertStatus } from './api';
+import { fetchBranding, submitAssessment, loginWithGoogle, logout, fetchCertStatus, waitForCertificate, downloadCertFile, type CertStatus } from './api';
 import { useSession } from './useSession';
 import { 
   Radar, 
@@ -1017,31 +1017,9 @@ export default function App() {
     setEssayAnswer('');
   };
 
-  // Server-side cert download. Resolves the stored URL via the polling endpoint.
-  const triggerBrowserDownload = (url: string, filename: string) => {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.target = '_blank';     // some browsers ignore `download` on cross-origin URLs
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
   const downloadCert = async (format: 'pdf' | 'png') => {
     const filename = `Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.${format}`;
-    const urlOf = (s: CertStatus) => (format === 'pdf' ? s.pdfUrl : s.pngUrl);
 
-    // Already-resolved server URL? Use it.
-    if (serverCert?.status === 'ready') {
-      const url = urlOf(serverCert);
-      if (url) { triggerBrowserDownload(url, filename); return; }
-    }
-
-    // Otherwise fetch / poll. assessmentId is set after submission (current
-    // session) or — for returning users — needs to come from the assessments
-    // list lookup. If we don't have one, there's nothing we can do here.
     if (!assessmentId) {
       console.warn('Cert download: no assessmentId in scope; cannot fetch server cert.');
       return;
@@ -1049,12 +1027,12 @@ export default function App() {
 
     setIsCertLoading(true);
     try {
-      let s = await fetchCertStatus(assessmentId);
+      let s: CertStatus = serverCert ?? await fetchCertStatus(assessmentId);
       if (s.status === 'pending') s = await waitForCertificate(assessmentId, { timeoutMs: 30_000 });
       setServerCert(s);
       if (s.status === 'ready') {
-        const url = urlOf(s);
-        if (url) { triggerBrowserDownload(url, filename); return; }
+        await downloadCertFile(assessmentId, format, filename);
+        return;
       }
       if (s.status === 'not_required') {
         console.warn('Cert not generated — score below passing threshold');
