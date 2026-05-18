@@ -17,7 +17,9 @@ export function authRouter(ctx: AuthCtx) {
       const { code, state } = req.query as { code?: string; state?: string };
       if (!code || !state) return res.status(400).send('missing code or state');
       const { next, jwt } = await consumeGoogleCallback(ctx, { code, state });
-      const safeNext = next.startsWith('/') ? next : '/';
+      // Open-redirect-safe: only accept paths starting with `/` followed by a non-`/` char.
+      // Rejects '//evil.com', 'http://evil.com', etc.
+      const safeNext = (next === '/' || /^\/[^/]/.test(next)) ? next : '/';
       res.redirect(302, `${safeNext}#token=${jwt}`);
     } catch (e: any) {
       res.status(400).send(`oauth callback failed: ${e?.message || 'unknown'}`);

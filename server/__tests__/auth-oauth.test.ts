@@ -69,4 +69,14 @@ describe('GET /api/auth/google → /callback', () => {
     const res = await request(makeApp(pool)).get('/api/auth/google/callback?code=c&state=missing');
     expect(res.status).toBe(400);
   });
+
+  it('callback: rejects protocol-relative redirect (//evil.com)', async () => {
+    await pool.query(`INSERT INTO oauth_state (state, payload) VALUES ('zzz', $1)`,
+                     [JSON.stringify({ next: '//evil.com/leak' })]);
+    const res = await request(makeApp(pool)).get('/api/auth/google/callback?code=c&state=zzz');
+    expect(res.status).toBe(302);
+    // Must redirect to root, NOT to //evil.com
+    expect(res.headers.location).toMatch(/^\/#token=eyJ/);
+    expect(res.headers.location).not.toContain('evil.com');
+  });
 });
