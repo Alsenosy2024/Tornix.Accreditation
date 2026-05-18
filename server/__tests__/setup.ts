@@ -26,6 +26,7 @@ beforeAll(() => {
   testSqlFile('db/schema.sql');
   testSqlFile('db/migrations/001_segmented_courses.sql');
   testSqlFile('db/migrations/002_cert_columns.sql');
+  testSqlFile('db/migrations/003_cert_jobs.sql');
   testSqlFile('db/migrations/004_oauth_state_payload.sql');
   // (003_cert_jobs.sql arrives in Task 10)
 });
