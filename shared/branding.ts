@@ -1,4 +1,4 @@
-import type { Db } from '../server/db';
+import type { Db } from '../server/db.js';
 
 export interface ServerBranding {
   logoDataUrl: string | null;

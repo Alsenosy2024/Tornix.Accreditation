@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware';
-import type { Db } from '../db';
+import { requireAuth } from '../middleware.js';
+import type { Db } from '../db.js';
 
 const COLUMNS = `id::int AS id, user_id, user_email, user_name, user_photo, score, integrity_score,
                  serial_number, status, answers, questions_count, created_at,

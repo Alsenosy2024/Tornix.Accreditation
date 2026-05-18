@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware';
-import type { Db } from '../db';
+import { requireAuth } from '../middleware.js';
+import type { Db } from '../db.js';
 
 export function meRouter(ctx: { db: Db }) {
   const r = Router();

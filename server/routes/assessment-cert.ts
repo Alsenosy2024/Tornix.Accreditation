@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware';
-import type { Db } from '../db';
-import type { Storage } from '../storage';
+import { requireAuth } from '../middleware.js';
+import type { Db } from '../db.js';
+import type { Storage } from '../storage.js';
 
 function parseId(raw: string): number | null {
   const n = Number(raw);
@@ -12,7 +12,7 @@ export function assessmentCertRouter(ctx: { db: Db; storage: Storage }) {
   const r = Router();
 
   r.get('/api/assessments/:id/cert', requireAuth, async (req, res) => {
-    const id = parseId(req.params.id);
+    const id = parseId(String(req.params.id));
     if (id === null) return res.status(404).json({ status: 'not_found' });
 
     const { rows } = await ctx.db.q<{

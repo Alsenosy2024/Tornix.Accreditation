@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { requireAuth, requireAdmin } from "../middleware";
-import type { Db } from "../db";
+import { requireAuth, requireAdmin } from "../middleware.js";
+import type { Db } from "../db.js";
 
 function parseId(raw: string): number | null {
   const n = Number(raw);
@@ -30,7 +30,7 @@ export function coursesRouter(ctx: { db: Db }) {
   });
 
   r.put("/api/courses/:id", requireAuth, requireAdmin, async (req, res) => {
-    const id = parseId(req.params.id);
+    const id = parseId(String(req.params.id));
     if (id === null) return res.status(400).json({ error: "invalid id" });
     const { title, video_url, chapters } = req.body ?? {};
     const { rows } = await ctx.db.q(
@@ -43,7 +43,7 @@ export function coursesRouter(ctx: { db: Db }) {
   });
 
   r.delete("/api/courses/:id", requireAuth, requireAdmin, async (req, res) => {
-    const id = parseId(req.params.id);
+    const id = parseId(String(req.params.id));
     if (id === null) return res.status(400).json({ error: "invalid id" });
     await ctx.db.q(`DELETE FROM courses WHERE id = $1`, [id]);
     res.status(204).end();

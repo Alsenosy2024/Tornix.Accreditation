@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireAuth, requireAdmin } from '../middleware';
-import type { Db } from '../db';
+import { requireAuth, requireAdmin } from '../middleware.js';
+import type { Db } from '../db.js';
 
 function camelCourse(r: Record<string, unknown>) {
   return {

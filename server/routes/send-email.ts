@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireAdmin } from '../middleware';
+import { requireAuth, requireAdmin } from '../middleware.js';
 
 export function sendEmailRouter(_ctx: object) {
   const r = Router();

@@ -1,16 +1,25 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "outDir": "server-dist",
     "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["server/**/*.ts", "worker/**/*.ts", "shared/**/*.ts"],
-  "exclude": ["**/__tests__/**", "**/*.test.ts"]
+  "include": [
+    "server/**/*.ts",
+    "worker/**/*.ts",
+    "shared/**/*.ts"
+  ],
+  "exclude": [
+    "**/__tests__/**",
+    "**/*.test.ts"
+  ]
 }

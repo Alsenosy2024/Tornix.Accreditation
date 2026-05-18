@@ -1,4 +1,4 @@
-import type { Db } from "./db";
+import type { Db } from "./db.js";
 
 /** Insert a pending cert_jobs row unless one is already pending or running for this assessment. */
 export async function enqueueCertJob(db: Db, assessmentId: number): Promise<void> {

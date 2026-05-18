@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
-import { startGoogleAuth, consumeGoogleCallback, type AuthCtx } from '../auth';
+import { startGoogleAuth, consumeGoogleCallback, type AuthCtx } from '../auth.js';
 
 export function authRouter(ctx: AuthCtx) {
   const r = Router();

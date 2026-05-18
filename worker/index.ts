@@ -1,7 +1,7 @@
-import { db } from '../server/db';
-import { storage } from '../server/storage';
-import { renderAndUpload } from './render';
-import { env } from '../server/env';
+import { db } from '../server/db.js';
+import { storage } from '../server/storage.js';
+import { renderAndUpload } from './render.js';
+import { env } from '../server/env.js';
 
 const MAX_ATTEMPTS = 3;
 const IDLE_SLEEP_MS = 3000;

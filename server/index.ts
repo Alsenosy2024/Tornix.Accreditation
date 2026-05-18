@@ -1,18 +1,18 @@
 import express, { type Express } from "express";
 import { Pool } from "pg";
-import { makeDb } from "./db";
-import { healthRouter } from "./routes/health";
-import { authRouter } from "./routes/auth";
-import { meRouter } from "./routes/me";
-import { coursesRouter } from "./routes/courses";
-import { settingsBrandingRouter } from "./routes/settings-branding";
-import { assessmentsRouter } from "./routes/assessments";
-import { assessmentCertRouter } from "./routes/assessment-cert";
-import { segmentedCoursesRouter } from "./routes/segmented-courses";
-import { progressRouter } from "./routes/progress";
-import { transcriptRouter } from "./routes/transcript";
-import { sendEmailRouter } from "./routes/send-email";
-import { storage } from "./storage";
+import { makeDb } from "./db.js";
+import { healthRouter } from "./routes/health.js";
+import { authRouter } from "./routes/auth.js";
+import { meRouter } from "./routes/me.js";
+import { coursesRouter } from "./routes/courses.js";
+import { settingsBrandingRouter } from "./routes/settings-branding.js";
+import { assessmentsRouter } from "./routes/assessments.js";
+import { assessmentCertRouter } from "./routes/assessment-cert.js";
+import { segmentedCoursesRouter } from "./routes/segmented-courses.js";
+import { progressRouter } from "./routes/progress.js";
+import { transcriptRouter } from "./routes/transcript.js";
+import { sendEmailRouter } from "./routes/send-email.js";
+import { storage } from "./storage.js";
 
 export interface BuildAppOpts {
   poolOverride?: Pool;
@@ -47,7 +47,7 @@ function isEntryPoint(): boolean {
   } catch { return false; }
 }
 if (isEntryPoint()) {
-  const { env } = await import("./env");
+  const { env } = await import("./env.js");
   const app = buildApp();
   app.listen(env.PORT, () => console.log(`[server] listening on :${env.PORT}`));
 }

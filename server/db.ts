@@ -1,5 +1,5 @@
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
-import { env } from './env';
+import { env } from './env.js';
 
 let _pool: Pool | undefined;
 function defaultPool() {

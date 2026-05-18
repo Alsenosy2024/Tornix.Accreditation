@@ -1,4 +1,4 @@
-import type { ServerBranding } from './branding';
+import type { ServerBranding } from './branding.js';
 
 export interface CertParams extends ServerBranding {
   userName: string;

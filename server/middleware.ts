@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { verifySession, type SessionPayload } from './auth';
+import { verifySession, type SessionPayload } from './auth.js';
 
 declare module 'express-serve-static-core' {
   interface Request { user?: SessionPayload }

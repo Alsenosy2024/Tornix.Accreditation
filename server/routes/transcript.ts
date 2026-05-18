@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware';
+import { requireAuth } from '../middleware.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
@@ -46,7 +46,7 @@ export function transcriptRouter(_ctx: object) {
 
   // GET /api/transcript/:slug  -> { sentences: [{start, end, text}] }
   r.get('/api/transcript/:slug', requireAuth, async (req, res) => {
-    const { slug } = req.params;
+    const slug = String(req.params.slug);
     const range = SOURCE_RANGES[slug];
     if (!range) return res.status(404).json({ error: 'unknown slug' });
 

@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { OAuth2Client } from 'google-auth-library';
-import type { Db } from './db';
+import type { Db } from './db.js';
 
 export interface SessionPayload {
   userId: string;

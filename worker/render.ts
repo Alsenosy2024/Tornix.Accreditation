@@ -1,8 +1,8 @@
 import puppeteer from 'puppeteer-core';
-import type { Db } from '../server/db';
-import type { Storage } from '../server/storage';
-import { fetchBrandingForServer } from '../shared/branding';
-import { renderCertHtml } from '../shared/cert-template';
+import type { Db } from '../server/db.js';
+import type { Storage } from '../server/storage.js';
+import { fetchBrandingForServer } from '../shared/branding.js';
+import { renderCertHtml } from '../shared/cert-template.js';
 
 export interface RenderCtx {
   db: Db;
@@ -51,7 +51,7 @@ export async function renderAndUpload(ctx: RenderCtx, assessmentId: number): Pro
   try {
     const page = await browser.newPage();
     await page.setExtraHTTPHeaders({ 'user-agent': 'Tornix-Cert-Renderer/1.0' });
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
     await page.evaluate(() => (document as any).fonts.ready);
     await new Promise(r => setTimeout(r, 300));
 
