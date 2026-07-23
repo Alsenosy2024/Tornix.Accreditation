@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  startRadialThemeTransition,
+  type ThemeTransitionOrigin,
+} from './themeTransition';
 
 type Theme = 'light' | 'dark';
 
@@ -42,10 +46,11 @@ function applyTheme(t: Theme): void {
 
 export function useTheme(): {
   theme: Theme;
-  toggle: () => void;
+  toggle: (origin?: ThemeTransitionOrigin, prefersReducedMotion?: boolean) => void;
   setTheme: (t: Theme) => void;
 } {
   const [theme, setThemeState] = useState<Theme>(readInitialTheme);
+  const transitionInProgress = useRef(false);
 
   // Sync DOM + state on mount in case the FOUC-prevention script didn't run
   // (e.g. SSR fallback, blocked inline script, or stale attribute).
@@ -87,17 +92,39 @@ export function useTheme(): {
     setThemeState(t);
   }, []);
 
-  const toggle = useCallback(() => {
-    setThemeState((prev) => {
-      const next: Theme = prev === 'dark' ? 'light' : 'dark';
-      applyTheme(next);
-      try {
-        window.localStorage.setItem(STORAGE_KEY, next);
-      } catch {
-        // ignore persistence failures
-      }
-      return next;
-    });
+  const toggle = useCallback((origin?: ThemeTransitionOrigin, prefersReducedMotion = false) => {
+    if (transitionInProgress.current) return;
+
+    const updateTheme = () => {
+      setThemeState((prev) => {
+        const next: Theme = prev === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, next);
+        } catch {
+          // ignore persistence failures
+        }
+        return next;
+      });
+    };
+
+    if (!origin) {
+      updateTheme();
+      return;
+    }
+
+    const transition = startRadialThemeTransition(
+      origin,
+      updateTheme,
+      prefersReducedMotion,
+    );
+
+    if (transition) {
+      transitionInProgress.current = true;
+      void transition.finally(() => {
+        transitionInProgress.current = false;
+      });
+    }
   }, []);
 
   return { theme, toggle, setTheme };

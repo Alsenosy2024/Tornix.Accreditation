@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTheme } from '../hooks/useTheme';
+import { getThemeTransitionOrigin } from '../hooks/themeTransition';
 
 interface ThemeToggleProps {
   lang?: 'ar' | 'en';
@@ -54,10 +55,18 @@ export function ThemeToggle({ lang = 'ar', className }: ThemeToggleProps) {
   // Show Moon when light (destination = dark), Sun when dark (destination = light).
   const Icon = theme === 'dark' ? Sun : Moon;
 
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    const origin = getThemeTransitionOrigin(
+      event,
+      event.currentTarget.getBoundingClientRect(),
+    );
+    toggle(origin, prefersReducedMotion);
+  };
+
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={handleClick}
       aria-pressed={theme === 'dark'}
       aria-label={label}
       title={label}

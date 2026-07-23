@@ -462,6 +462,14 @@
 
 /* Theme transition — only color, not layout */
 html { transition: background-color 200ms cubic-bezier(0.22, 1, 0.36, 1), color 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+html.theme-transition-active { transition: none; }
+html.theme-transition-active::view-transition-old(root),
+html.theme-transition-active::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-transition-active::view-transition-old(root) { z-index: 1; }
+html.theme-transition-active::view-transition-new(root) { z-index: 2; }
 @media (prefers-reduced-motion: reduce) {
   html { transition: none; }
 }
