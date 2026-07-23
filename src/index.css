@@ -136,6 +136,56 @@
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9999px; }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --primary: #A37AE0;
+    --primary-light: #B89AEC;
+    --primary-dark: #8E61D2;
+    --primary-deep: #E2D4F4;
+    --primary-tint: oklch(0.31 0.080 296);
+    --primary-wash: oklch(0.24 0.045 296);
+    --primary-focus: oklch(0.27 0.060 296);
+
+    --bg: oklch(0.17 0.012 295);
+    --bg-alt: oklch(0.20 0.012 295);
+    --card: oklch(0.23 0.013 295);
+
+    --border: oklch(0.33 0.012 295);
+    --border-hairline: oklch(0.29 0.011 295);
+    --border-strong: oklch(0.44 0.015 295);
+
+    --text: oklch(0.95 0.005 295);
+    --text-heading: oklch(0.98 0.003 295);
+    --text-dim: oklch(0.74 0.008 295);
+    --text-muted: oklch(0.60 0.010 295);
+
+    --nav-bg: oklch(0.17 0.012 295);
+  }
+
+  /* Light-mode opt-out for subtrees (e.g. printable certificate) */
+  [data-theme="light"]:not(:root) {
+    color-scheme: light;
+    --primary: #7D42C6;
+    --primary-light: #A06CD5;
+    --primary-dark: #6A35AB;
+    --primary-deep: #472572;
+    --primary-tint: #ECE8FF;
+    --primary-wash: #F5F3FF;
+    --primary-focus: #F2F3FF;
+    --bg: #F9F9F9;
+    --bg-alt: #FBFBFB;
+    --card: #FFFFFF;
+    --border: #EFEFEF;
+    --border-hairline: #F1F5F9;
+    --border-strong: #CCCCCC;
+    --text: #1A1A2E;
+    --text-heading: #0F172A;
+    --text-dim: #4D4D4D;
+    --text-muted: #64748B;
+    --nav-bg: #F9F9F9;
+  }
 }
 
 /* Type scale — +1pt over Latin defaults for Arabic naskh breathing room */
@@ -272,6 +322,16 @@
 .badge-validated { background: #EBF4D8; color: #3D5A0A; }
 .badge-proposed  { background: #DEF4F6; color: #07565E; }
 
+[data-theme="dark"] .badge-completed { background: oklch(0.30 0.060 160); color: oklch(0.92 0.080 160); }
+[data-theme="dark"] .badge-pending   { background: oklch(0.30 0.080 330); color: oklch(0.92 0.080 330); }
+[data-theme="dark"] .badge-failed    { background: oklch(0.32 0.070 40);  color: oklch(0.92 0.090 70); }
+[data-theme="dark"] .badge-cancelled { background: oklch(0.30 0.070 10);  color: oklch(0.92 0.080 10); }
+[data-theme="dark"] .badge-planned   { background: oklch(0.30 0.060 250); color: oklch(0.92 0.070 250); }
+[data-theme="dark"] .badge-progress  { background: oklch(0.30 0.080 296); color: oklch(0.92 0.060 296); }
+[data-theme="dark"] .badge-deferred  { background: oklch(0.30 0.010 285); color: oklch(0.88 0.010 285); }
+[data-theme="dark"] .badge-validated { background: oklch(0.30 0.070 120); color: oklch(0.92 0.080 120); }
+[data-theme="dark"] .badge-proposed  { background: oklch(0.30 0.050 195); color: oklch(0.92 0.060 195); }
+
 /* Surfaces */
 .surface { background: var(--card); border: 1px solid var(--border-hairline); }
 .surface-soft { background: var(--bg); border: 1px solid var(--border-hairline); }
@@ -324,6 +384,9 @@
   color: var(--primary-deep);
   border: 1px solid var(--primary-tint);
   border-radius: 20px;
+}
+[data-theme="dark"] .ai-surface-soft {
+  border-color: oklch(0.36 0.080 296);
 }
 
 /* Iridescent logo halo — the single decorative flourish, used sparingly */
@@ -396,3 +459,19 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Theme transition — only color, not layout */
+html { transition: background-color 200ms cubic-bezier(0.22, 1, 0.36, 1), color 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+html.theme-transition-active { transition: none; }
+html.theme-transition-active::view-transition-old(root),
+html.theme-transition-active::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-transition-active::view-transition-old(root) { z-index: 1; }
+html.theme-transition-active::view-transition-new(root) { z-index: 2; }
+@media (prefers-reduced-motion: reduce) {
+  html { transition: none; }
+}
+[data-theme="dark"] input[type="range"]::-webkit-slider-thumb { border-color: var(--card); }
+[data-theme="dark"] input[type="range"]::-moz-range-thumb { border-color: var(--card); }
