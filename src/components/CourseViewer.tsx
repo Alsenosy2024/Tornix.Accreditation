@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { listCourses } from '../api';
-import { PlayCircle, FileText, Sparkles, Loader2, X, Cpu, Zap, BarChart3, ShieldCheck, ShoppingCart, LayoutGrid, ArrowUpRight, ArrowUpLeft } from 'lucide-react';
+import { listCourses, listSegmentedCourses } from '../api';
+import { PlayCircle, FileText, Sparkles, Loader2, X, Cpu, Zap, BarChart3, ShieldCheck, ShoppingCart, LayoutGrid, ArrowUpRight, ArrowUpLeft, ArrowLeft, ArrowRight } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -125,10 +125,14 @@ interface Course {
 interface CourseViewerProps {
   lang: 'ar' | 'en';
   onClose: () => void;
+  onOpenSegmented?: (slug: string) => void;
 }
 
-export const CourseViewer: React.FC<CourseViewerProps> = ({ lang, onClose }) => {
+type SegmentedRow = { id: number; slug: string; titleAr: string; titleEn: string };
+
+export const CourseViewer: React.FC<CourseViewerProps> = ({ lang, onClose, onOpenSegmented }) => {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [segmentedCourses, setSegmentedCourses] = useState<SegmentedRow[]>([]);
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -171,9 +175,13 @@ export const CourseViewer: React.FC<CourseViewerProps> = ({ lang, onClose }) => 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const parsed = (await listCourses()) as unknown as Course[];
-        setCourses(parsed);
-        if (parsed.length > 0) setActiveCourse(parsed[0]);
+        const [legacy, segmented] = await Promise.all([
+          listCourses().catch(() => []) as Promise<Course[]>,
+          listSegmentedCourses().catch(() => [] as SegmentedRow[]),
+        ]);
+        setCourses(legacy as unknown as Course[]);
+        setSegmentedCourses(segmented as SegmentedRow[]);
+        if (legacy.length > 0) setActiveCourse(legacy[0] as unknown as Course);
       } catch (err) {
         console.error("Error fetching courses", err);
       } finally {
@@ -333,24 +341,55 @@ export const CourseViewer: React.FC<CourseViewerProps> = ({ lang, onClose }) => 
               </AnimatePresence>
             </div>
 
-            {/* Empty-library card */}
-            <div className="card mt-10 p-8 md:p-10 text-center" style={{ borderRadius: 20 }}>
-              <div className="logo-halo mx-auto w-16 h-16 grid place-items-center mb-5">
-                <PlayCircle className="w-8 h-8" style={{ color: 'var(--primary)' }} />
+            {/* Available courses (segmented) — replaces the "coming soon" card whenever we have one */}
+            {segmentedCourses.length > 0 ? (
+              <div className="mt-10 space-y-3">
+                {segmentedCourses.map(sc => (
+                  <div key={sc.id} className="card p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-5" style={{ borderRadius: 20 }}>
+                    <div className="logo-halo w-16 h-16 grid place-items-center shrink-0">
+                      <PlayCircle className="w-8 h-8" style={{ color: 'var(--primary)' }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-h2 mb-1" style={{ color: 'var(--text-heading)' }}>
+                        {isAr ? sc.titleAr : sc.titleEn}
+                      </h3>
+                      <p className="text-body-m" style={{ color: 'var(--text-muted)' }}>
+                        {isAr
+                          ? 'دورة كاملة بـ ٢٢ مقطعًا — مقدمة ومحتوى وخاتمة لكل مقطع.'
+                          : 'Full course — 22 segments with intro, content, and outro for each.'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => onOpenSegmented?.(sc.slug)}
+                      disabled={!onOpenSegmented}
+                      className="btn btn-primary btn-lg shrink-0 flex items-center gap-2"
+                      style={{ minWidth: 200 }}>
+                      <PlayCircle className="w-5 h-5" />
+                      {isAr ? 'ابدأ الدورة' : 'Start course'}
+                      {isAr ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                    </button>
+                  </div>
+                ))}
               </div>
-              <h3 className="text-h2 mb-2" style={{ color: 'var(--text-heading)' }}>
-                {isAr ? 'مكتبة الفيديو قيد التجهيز' : 'Video library coming soon'}
-              </h3>
-              <p className="text-body-m max-w-md mx-auto leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                {isAr
-                  ? 'دروس عمليّة بدقّة عالية تشرح المنصّة بعمق، تحت الإنتاج الآن.'
-                  : 'High-fidelity, practical lessons covering the platform in depth — in production now.'}
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
-                <span className="badge badge-progress">{isAr ? 'في الإنتاج' : 'In production'}</span>
-                <span className="badge badge-completed">{isAr ? 'قريباً' : 'Launching soon'}</span>
+            ) : (
+              <div className="card mt-10 p-8 md:p-10 text-center" style={{ borderRadius: 20 }}>
+                <div className="logo-halo mx-auto w-16 h-16 grid place-items-center mb-5">
+                  <PlayCircle className="w-8 h-8" style={{ color: 'var(--primary)' }} />
+                </div>
+                <h3 className="text-h2 mb-2" style={{ color: 'var(--text-heading)' }}>
+                  {isAr ? 'مكتبة الفيديو قيد التجهيز' : 'Video library coming soon'}
+                </h3>
+                <p className="text-body-m max-w-md mx-auto leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  {isAr
+                    ? 'دروس عمليّة بدقّة عالية تشرح المنصّة بعمق، تحت الإنتاج الآن.'
+                    : 'High-fidelity, practical lessons covering the platform in depth — in production now.'}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
+                  <span className="badge badge-progress">{isAr ? 'في الإنتاج' : 'In production'}</span>
+                  <span className="badge badge-completed">{isAr ? 'قريباً' : 'Launching soon'}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : (
           <div className="max-w-6xl w-full mx-auto flex flex-col xl:flex-row gap-6">

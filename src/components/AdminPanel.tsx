@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, Image as ImageIcon, CheckCircle, X, Crop as CropIcon, FileText, BarChart3, Download, Mail, Check } from 'lucide-react';
+import { Settings, Image as ImageIcon, CheckCircle, X, Crop as CropIcon, FileText, BarChart3, Download, Mail, Check, LayoutGrid } from 'lucide-react';
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -44,9 +44,10 @@ function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: numbe
 import { saveBranding, listAssessments } from '../api';
 
 import { CoursesAdmin } from './CoursesAdmin';
+import { SegmentedCoursesAdmin } from './SegmentedCoursesAdmin';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
-  const [activeTab, setActiveTab] = useState<'dash' | 'logo' | 'badge' | 'cert' | 'email' | 'courses'>('dash');
+  const [activeTab, setActiveTab] = useState<'dash' | 'logo' | 'badge' | 'cert' | 'email' | 'courses' | 'segmented'>('dash');
   
   const [imgSrc, setImgSrc] = useState('');
   useEffect(() => {
@@ -343,6 +344,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
     { key: 'cert',    ar: 'قالب الشهادة',         en: 'Certificate template',Icon: FileText },
     { key: 'email',   ar: 'إعدادات البريد',       en: 'Email settings',     Icon: Mail },
     { key: 'courses', ar: 'إدارة الكورسات',       en: 'Courses',            Icon: FileText },
+    { key: 'segmented', ar: 'كورسات مُجزّأة',     en: 'Segmented courses',  Icon: LayoutGrid },
   ];
   const headings: Record<string, [string, string]> = {
     dash:  ['سجل المتقدمين', 'Assessment records'],
@@ -416,7 +418,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
             <X className="w-4 h-4" />
           </button>
 
-          {activeTab !== 'courses' && (
+          {activeTab !== 'courses' && activeTab !== 'segmented' && (
             <div className="flex items-center justify-between mb-6">
               <div>
                 <span className="text-label">{isAr ? 'لوحة الإدارة' : 'Admin'}</span>
@@ -434,6 +436,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
 
            {activeTab === 'courses' && (
                <CoursesAdmin lang={lang} />
+           )}
+
+           {activeTab === 'segmented' && (
+               <SegmentedCoursesAdmin lang={lang} />
            )}
 
           {activeTab === 'dash' && (
@@ -489,7 +495,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, lang }) => {
           )}
 
           {/* Current image preview + upload */}
-          {!imgSrc && activeTab !== 'dash' && activeTab !== 'email' && activeTab !== 'courses' && (
+          {!imgSrc && activeTab !== 'dash' && activeTab !== 'email' && activeTab !== 'courses' && activeTab !== 'segmented' && (
             <div className="card card-tight p-5 md:p-6 mb-6 flex flex-col md:flex-row items-stretch gap-5">
               <div
                 className={`relative overflow-hidden grid place-items-center rounded-2xl w-full ${activeTab === 'cert' ? 'aspect-[1/1.414] max-w-[280px] mx-auto' : 'aspect-video md:w-1/2'}`}

@@ -11,3 +11,4 @@ coverage/
 .netlify
 serviceAccountKey.json
 firebase-export/
+.env.local

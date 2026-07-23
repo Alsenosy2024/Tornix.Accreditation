@@ -1,0 +1,18 @@
+http://3.79.150.56 {
+	root * /opt/tornix/dist
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3000 {
+			transport http {
+				read_timeout 5m
+				response_header_timeout 5m
+			}
+		}
+	}
+
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -1,8 +1,8 @@
-import { supabase } from './supabase';
+import { getStoredToken } from './useSession';
 
-// Thin fetch wrapper for the Netlify Function backend.
-// Auth: pulls the current Supabase access token and forwards it as Bearer.
-// All functions then verify it via supabase.auth.getUser(token) and rely on RLS.
+// Thin fetch wrapper for the Express backend.
+// Auth: pulls the JWT from localStorage and forwards it as Bearer.
+// All functions then verify it server-side.
 
 export interface SessionUser {
   uid: string;             // auth.users.id (UUID)
@@ -12,10 +12,9 @@ export interface SessionUser {
   isAdmin: boolean;
 }
 
-async function authHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const tok = data.session?.access_token;
-  return tok ? { Authorization: `Bearer ${tok}` } : {};
+function authHeaders(): Record<string, string> {
+  const t = getStoredToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
 async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
@@ -23,10 +22,16 @@ async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...(await authHeaders()),
+      ...authHeaders(),
       ...(init?.headers || {}),
     },
   });
+  if (res.status === 401) {
+    // Save last URL so we can return after login, then redirect
+    try { sessionStorage.setItem('postLoginReturn', window.location.pathname + window.location.search); } catch {}
+    // Defer redirect to next tick so callers can handle errors first if they want
+    setTimeout(() => { window.location.assign('/'); }, 0);
+  }
   const text = await res.text();
   let data: any = undefined;
   try { data = text ? JSON.parse(text) : undefined; } catch { /* not JSON */ }
@@ -44,14 +49,12 @@ export async function fetchMe(): Promise<SessionUser | null> {
 }
 
 export function loginWithGoogle(redirect: string = window.location.origin): void {
-  void supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: redirect },
-  });
+  window.location.href = `/api/auth/google?next=${encodeURIComponent(redirect)}`;
 }
 
 export async function logout(): Promise<void> {
-  await supabase.auth.signOut();
+  const KEY = 'tornix.jwt';
+  try { localStorage.removeItem(KEY); } catch {}
 }
 
 // ----- Settings (branding) ---------------------------------------
@@ -112,6 +115,65 @@ export const submitAssessment = (a: AssessmentInsert) =>
 export const listAssessments = (): Promise<AssessmentRow[]> =>
   jsonFetch<AssessmentRow[]>('/api/assessments');
 
+// ----- Server-side cert -----------------------------------------
+export type CertStatusKind = 'pending' | 'ready' | 'not_required' | 'failed';
+export interface CertStatus {
+  status: CertStatusKind;
+  pdfUrl?: string | null;
+  pngUrl?: string | null;
+}
+
+export const fetchCertStatus = async (assessmentId: number): Promise<CertStatus> => {
+  // The endpoint returns 202 for pending; jsonFetch treats that as success.
+  return jsonFetch<CertStatus>(`/api/assessments/${assessmentId}/cert`);
+};
+
+export async function waitForCertificate(
+  assessmentId: number,
+  opts: { timeoutMs?: number; intervalMs?: number } = {}
+): Promise<CertStatus> {
+  const { timeoutMs = 30_000, intervalMs = 2_000 } = opts;
+  const deadline = Date.now() + timeoutMs;
+  let last: CertStatus = { status: 'pending' };
+  while (Date.now() < deadline) {
+    try {
+      last = await fetchCertStatus(assessmentId);
+      if (last.status !== 'pending') return last;
+    } catch {
+      // network blip — keep polling
+    }
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  return last;
+}
+
+// Cert URLs are API-relative and require the Bearer token, so a plain <a href>
+// download won't work. Fetch the bytes ourselves, then trigger a download from a blob URL.
+export async function downloadCertFile(
+  assessmentId: number,
+  format: 'pdf' | 'png',
+  filename: string,
+): Promise<void> {
+  const url = `/api/assessments/${assessmentId}/cert/file?format=${format}`;
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Cert download failed: ${res.status} ${text || res.statusText}`);
+  }
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 5_000);
+  }
+}
+
 // ----- Email -----------------------------------------------------
 export const sendAssessmentEmail = (payload: {
   email: string; name: string; score: number; status: 'Passed' | 'Failed'; date: string;
@@ -120,3 +182,87 @@ export const sendAssessmentEmail = (payload: {
   method: 'POST',
   body: JSON.stringify(payload),
 });
+
+// ----- Segmented courses -----------------------------------------
+export interface QuizQuestion {
+  id?: string;
+  q_ar: string; q_en: string;
+  choices_ar: string[]; choices_en: string[];
+  answer: number;
+}
+export interface SegmentedCourse {
+  id: number;
+  slug: string;
+  titleAr: string; titleEn: string;
+  descriptionAr: string | null; descriptionEn: string | null;
+  language: 'ar' | 'en';
+  passingScorePct: number;
+  examQuestionCount: number;
+  unlockThresholdPct: number;
+  createdAt: string;
+}
+export interface CourseSegment {
+  id: number;
+  num: number;
+  slug: string;
+  titleAr: string; titleEn: string;
+  descriptionAr: string | null; descriptionEn: string | null;
+  durationSec: number;
+  vimeo: { introId: string | null; contentId: string | null; outroId: string | null };
+  introDurationSec: number | null;
+  outroDurationSec: number | null;
+  nextTitleAr: string | null; nextTitleEn: string | null;
+  quiz: QuizQuestion[];
+}
+
+export const listSegmentedCourses = (): Promise<Array<{ id: number; slug: string; titleAr: string; titleEn: string; createdAt: string }>> =>
+  jsonFetch('/api/segmented-courses');
+
+export const fetchSegmentedCourse = (slug: string): Promise<{ course: SegmentedCourse; segments: CourseSegment[] }> =>
+  jsonFetch(`/api/segmented-courses/${encodeURIComponent(slug)}`);
+
+export const upsertSegmentedCourse = (payload: {
+  slug: string; titleAr: string; titleEn: string;
+  descriptionAr?: string; descriptionEn?: string;
+  language?: 'ar' | 'en';
+  passingScorePct?: number; examQuestionCount?: number; unlockThresholdPct?: number;
+  segments?: Array<Omit<CourseSegment, 'id'>>;
+}): Promise<{ id: number }> =>
+  jsonFetch('/api/segmented-courses', { method: 'POST', body: JSON.stringify(payload) });
+
+// ----- Progress -----
+export type ClipKind = 'intro' | 'content' | 'outro';
+export interface ProgressRow {
+  segmentId: number;
+  clipKind: ClipKind;
+  positionSec: number;
+  completedAt: string | null;
+  updatedAt: string;
+}
+export const fetchMyProgress = (courseSlug: string): Promise<ProgressRow[]> =>
+  jsonFetch(`/api/progress/${encodeURIComponent(courseSlug)}`);
+
+export const upsertProgress = (payload: {
+  segmentId: number;
+  clipKind: ClipKind;
+  positionSec: number;
+  completedAt?: string;
+}): Promise<{ ok: true }> =>
+  jsonFetch('/api/progress', { method: 'POST', body: JSON.stringify(payload) });
+
+// Beacon-friendly variant: synchronous, reads token directly from localStorage.
+// Safe to call in `beforeunload`.
+// Returns true if accepted by the browser, false if no token is available.
+export function beaconProgress(payload: {
+  segmentId: number; clipKind: ClipKind; positionSec: number; completedAt?: string;
+}): boolean {
+  const tok = getStoredToken();
+  if (!tok) return false;
+  const blob = new Blob([JSON.stringify({ ...payload, _token: tok })], { type: 'application/json' });
+  return navigator.sendBeacon('/api/progress', blob);
+}
+
+// ----- Transcript -----
+export interface TranscriptSentence { start: number; end: number; text: string; }
+export const fetchTranscript = (slug: string): Promise<{ sentences: TranscriptSentence[] }> =>
+  jsonFetch(`/api/transcript/${encodeURIComponent(slug)}`);

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AdminPanel } from './components/AdminPanel';
 import { CourseViewer } from './components/CourseViewer';
+import { SegmentedCourseViewer } from './components/SegmentedCourseViewer';
 import { Onboarding } from './components/Onboarding';
+import { ThemeToggle } from './components/ThemeToggle';
 import {
   Play,
   CheckCircle,
@@ -25,6 +27,7 @@ import {
   Award,
   Info,
   BookOpen,
+  PlayCircle,
   RefreshCcw,
   XCircle,
   Loader2,
@@ -33,7 +36,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { generateQuizQuestions, GeneratedQuestion } from './services/geminiService';
-import { fetchBranding, submitAssessment, loginWithGoogle, logout } from './api';
+import { fetchBranding, submitAssessment, loginWithGoogle, logout, fetchCertStatus, waitForCertificate, downloadCertFile, type CertStatus } from './api';
 import { useSession } from './useSession';
 import { 
   Radar, 
@@ -52,8 +55,6 @@ import {
 } from 'recharts';
 import emailjs from '@emailjs/browser';
 
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { GoogleGenAI } from '@google/genai';
 
 // --- Types ---
@@ -554,6 +555,7 @@ const TornixLogo = ({ lang }: { lang?: 'ar' | 'en' }) => {
 export default function App() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [showCourse, setShowCourse] = useState(false);
+  const [showSegmentedCourse, setShowSegmentedCourse] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
@@ -564,21 +566,25 @@ export default function App() {
   const { logo: currentLogo, badge: currentBadge, certBg, nameY, serialY, fontFamily, nameColor, serialColor, serialFontSize } = useBranding();
   
   // Auth state — replaces useAuthState(firebase auth) with our cookie/JWT session.
-  const [user, authLoading] = useSession();
+  const { user, signOut } = useSession();
+  const authLoading = false; // loading state removed (JWT is synchronous)
   
   const [step, setStep] = useState<'welcome' | 'camera_check' | 'orientation' | 'quiz' | 'result' | 'terminated'>('welcome');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [score, setScore] = useState(0);
+  // Server-side certificate flow (Task 8 of plan 2026-05-12)
+  const [assessmentId, setAssessmentId] = useState<number | null>(null);
+  const [serverCert, setServerCert] = useState<CertStatus | null>(null);
+  const [isCertLoading, setIsCertLoading] = useState(false);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
-  const [theme] = useState<'light'>('light');
-  
+
   const [isEssayMode, setIsEssayMode] = useState(false);
   const [essayAnswer, setEssayAnswer] = useState('');
   const [isValidatingEssay, setIsValidatingEssay] = useState(false);
@@ -594,7 +600,6 @@ export default function App() {
   const [showReview, setShowReview] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
-  const certRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
      if (user) {
@@ -624,9 +629,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-  }, [theme, lang]);
+  }, [lang]);
 
   useEffect(() => {
     let timer: any;
@@ -704,7 +708,7 @@ export default function App() {
                selectedId: ua.selectedId,
            }));
 
-           await submitAssessment({
+           const saved = await submitAssessment({
                userName: user.name || userName || "Student",
                userPhoto: userPhoto || undefined,
                score: finalScore,
@@ -714,6 +718,9 @@ export default function App() {
                answers: condensedAnswers,
                questionsCount: questions.length,
            });
+           // Capture the new row id so the cert download flow can poll for the
+           // server-rendered PDF/PNG.
+           if (saved?.id) setAssessmentId(saved.id);
        } catch(err) {
            console.error("Failed to save assessment", err);
        }
@@ -1010,90 +1017,38 @@ export default function App() {
     setEssayAnswer('');
   };
 
-  const generateCanvas = async () => {
-    if (!certRef.current) return null;
-    
-    // Create a deep clone
-    const clone = certRef.current.cloneNode(true) as HTMLElement;
-    
-    // Remove fixed/relative positioning that might interfere
-    clone.className = 'bg-white';
-    clone.style.position = 'absolute';
-    clone.style.left = '0';
-    clone.style.top = '0';
-    clone.style.width = '2480px';
-    clone.style.height = '3508px';
-    clone.style.zIndex = '-9999';
-    clone.style.visibility = 'visible';
-    clone.style.overflow = 'hidden';
-    
-    // Crucially: Fix Container Query units into absolute pixels for capture
-    // html2canvas doesn't support cqw units well
-    const fixCQW = (el: HTMLElement) => {
-      const cqwToPx = (val: string) => {
-        if (!val || !val.includes('cqw')) return val;
-        const num = parseFloat(val);
-        // Base width is 2480px, so 1cqw = 24.8px
-        return `${num * 24.8}px`;
-      };
-      
-      if (el.style.fontSize) el.style.fontSize = cqwToPx(el.style.fontSize);
-      
-      Array.from(el.children).forEach(child => fixCQW(child as HTMLElement));
-    };
-    fixCQW(clone);
+  const downloadCert = async (format: 'pdf' | 'png') => {
+    const filename = `Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.${format}`;
 
-    document.body.appendChild(clone);
-    
-    // Give time for images/fonts to render
-    await new Promise(r => setTimeout(r, 1000));
-    
+    if (!assessmentId) {
+      console.warn('Cert download: no assessmentId in scope; cannot fetch server cert.');
+      return;
+    }
+
+    setIsCertLoading(true);
     try {
-      const canvas = await html2canvas(clone, { 
-        scale: 1, 
-        useCORS: true, 
-        allowTaint: true,
-        logging: false,
-        width: 2480,
-        height: 3508,
-        windowWidth: 2480,
-        windowHeight: 3508,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0
-      });
-      return canvas;
-    } catch(err) {
-      console.error("Failed generating image.", err);
-      return null;
+      let s: CertStatus = serverCert ?? await fetchCertStatus(assessmentId);
+      if (s.status === 'pending') s = await waitForCertificate(assessmentId, { timeoutMs: 30_000 });
+      setServerCert(s);
+      if (s.status === 'ready') {
+        await downloadCertFile(assessmentId, format, filename);
+        return;
+      }
+      if (s.status === 'not_required') {
+        console.warn('Cert not generated — score below passing threshold');
+        return;
+      }
+      // pending after timeout OR failed
+      console.error('Cert is still pending after polling. Try again in a minute.');
+    } catch (e) {
+      console.error('Cert lookup failed:', e);
     } finally {
-      document.body.removeChild(clone);
+      setIsCertLoading(false);
     }
   };
 
-  const downloadCertificatePNG = async () => {
-    const canvas = await generateCanvas();
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.download = `Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.png`;
-    link.href = canvas.toDataURL('image/png', 1.0);
-    link.click();
-  };
-
-  const downloadCertificatePDF = async () => {
-    const canvas = await generateCanvas();
-    if (!canvas) return;
-    const imgData = canvas.toDataURL('image/png', 1.0);
-    // A4 Portrait: 210x297 mm
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-    pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
-    pdf.save(`Tornix_Access_Pass_${userName.replace(/\s+/g, '_')}.pdf`);
-  };
+  const downloadCertificatePNG = () => downloadCert('png');
+  const downloadCertificatePDF = () => downloadCert('pdf');
 
   const shareToLinkedIn = () => {
     const certName = "Tornix Certified Professional";
@@ -1132,7 +1087,21 @@ export default function App() {
         style={{ background: 'var(--nav-bg)', borderColor: 'var(--border-hairline)' }}
       >
         <div className="w-full max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-6">
-          <TornixLogo lang={lang} />
+          <button
+            type="button"
+            onClick={() => {
+              // Close every overlay and return to the welcome step
+              setShowSegmentedCourse(false);
+              setShowCourse(false);
+              setShowAdmin(false);
+              if (step !== 'welcome') setStep('welcome');
+            }}
+            className="appearance-none bg-transparent border-0 p-0 cursor-pointer"
+            aria-label={isAr ? 'العودة للصفحة الرئيسية' : 'Back to home'}
+            title={isAr ? 'العودة للصفحة الرئيسية' : 'Back to home'}
+          >
+            <TornixLogo lang={lang} />
+          </button>
 
           {/* Step rail — only when in flow, hidden below md */}
           {step !== 'result' && step !== 'terminated' && (
@@ -1177,6 +1146,22 @@ export default function App() {
               <Info className="w-3.5 h-3.5" />
               {isAr ? 'عن تورنكس' : 'About Tornix'}
             </button>
+            <button
+              onClick={() => setShowSegmentedCourse(true)}
+              className="hidden sm:inline-flex btn btn-primary btn-sm"
+            >
+              {isAr ? 'دورة TCP' : 'TCP Course'}
+            </button>
+            {user && (
+              <button
+                onClick={signOut}
+                className="hidden sm:inline-flex btn btn-ghost btn-sm"
+                title={isAr ? 'تسجيل الخروج' : 'Sign out'}
+              >
+                {isAr ? 'تسجيل الخروج' : 'Sign out'}
+              </button>
+            )}
+            <ThemeToggle lang={lang} />
             <div className="inline-flex items-center p-0.5 rounded-full" style={{ background: 'var(--border-hairline)' }}>
               <button
                 onClick={() => setLang('ar')}
@@ -1294,7 +1279,35 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="card mt-10 p-6 md:p-8 max-w-md mx-auto">
+                  {user && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSegmentedCourse(true)}
+                      className="cta-course-hero group mt-10 w-full max-w-xl mx-auto flex items-center gap-5 md:gap-6 text-start rounded-3xl px-6 md:px-7 py-5 md:py-6 relative overflow-hidden"
+                      aria-label={isAr ? 'ابدأ دورة TCP' : 'Start the TCP course'}
+                    >
+                      <span className="cta-course-orb relative shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-full grid place-items-center" aria-hidden>
+                        <span className="cta-course-halo" />
+                        <PlayCircle className="relative w-7 h-7 md:w-8 md:h-8" strokeWidth={1.6} />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[0.6875rem] uppercase tracking-[0.14em] font-semibold opacity-85 mb-0.5">
+                          {isAr ? 'الطريق الموصى به' : 'Recommended path'}
+                        </span>
+                        <span className="block text-h3 leading-tight mb-1" style={{ color: 'currentColor' }}>
+                          {isAr ? 'ابدأ دورة TCP' : 'Start the TCP course'}
+                        </span>
+                        <span className="block text-[0.8125rem] opacity-90 leading-snug">
+                          {isAr
+                            ? '٢٢ مقطعًا مرشدًا — مقدمة، محتوى، وخاتمة لكل جزء، ثم الاختبار والشهادة.'
+                            : '22 guided segments — intro, content, and outro each, then the exam and certificate.'}
+                        </span>
+                      </span>
+                      <ChevronRight className={`w-5 h-5 shrink-0 opacity-90 transition-transform group-hover:translate-x-0.5 ${isAr ? 'rotate-180 group-hover:!-translate-x-0.5' : ''}`} />
+                    </button>
+                  )}
+
+                  <div className={`card ${user ? 'mt-5' : 'mt-10'} p-6 md:p-8 max-w-md mx-auto`}>
                     {!user ? (
                       <>
                         <h3 className="text-h4 mb-1" style={{ color: 'var(--text-heading)' }}>
@@ -1322,6 +1335,14 @@ export default function App() {
                       </>
                     ) : (
                       <>
+                        <div className="flex items-center gap-3 mb-5">
+                          <span className="flex-1 h-px" style={{ background: 'var(--border-hairline)' }} />
+                          <span className="text-[0.7rem] font-medium uppercase tracking-[0.1em]" style={{ color: 'var(--text-muted)' }}>
+                            {isAr ? 'أو، الاختبار مباشرة' : 'or, exam directly'}
+                          </span>
+                          <span className="flex-1 h-px" style={{ background: 'var(--border-hairline)' }} />
+                        </div>
+
                         <div className="space-y-4">
                           <label className="block">
                             <span className="text-label block mb-2">
@@ -1362,18 +1383,10 @@ export default function App() {
                         <button
                           onClick={handleRegistrationSubmit}
                           disabled={!userName.trim()}
-                          className="btn btn-primary btn-lg w-full mt-6"
+                          className="btn btn-ghost btn-md w-full mt-5"
                         >
                           {isAr ? 'المتابعة إلى التحقق' : 'Continue to verification'}
                           <ChevronRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        <button
-                          onClick={() => setShowCourse(true)}
-                          className="btn btn-ghost btn-md w-full mt-3"
-                        >
-                          <BookOpen className="w-4 h-4" />
-                          {isAr ? 'مركز المعرفة والتدريب' : 'Knowledge & training center'}
                         </button>
                       </>
                     )}
@@ -1716,11 +1729,13 @@ export default function App() {
                     <div className="px-7 md:px-10 pb-8">
                       {score >= 60 ? (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <button onClick={downloadCertificatePNG} className="btn btn-primary btn-lg">
-                            <Download className="w-4 h-4" /> {isAr ? 'تنزيل صورة' : 'Download PNG'}
+                          <button onClick={downloadCertificatePNG} disabled={isCertLoading} className="btn btn-primary btn-lg">
+                            {isCertLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            {isAr ? 'تنزيل صورة' : 'Download PNG'}
                           </button>
-                          <button onClick={downloadCertificatePDF} className="btn btn-secondary btn-lg">
-                            <Download className="w-4 h-4" /> {isAr ? 'تنزيل PDF' : 'Download PDF'}
+                          <button onClick={downloadCertificatePDF} disabled={isCertLoading} className="btn btn-secondary btn-lg">
+                            {isCertLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            {isAr ? 'تنزيل PDF' : 'Download PDF'}
                           </button>
                           <button onClick={shareToLinkedIn} className="btn btn-outline btn-lg">
                             {isAr ? 'إضافة إلى LinkedIn' : 'Add to LinkedIn'}
@@ -1875,7 +1890,24 @@ export default function App() {
       </footer>
 
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} lang={lang} />}
-      {showCourse && <CourseViewer onClose={() => setShowCourse(false)} lang={lang} />}
+      {showCourse && (
+        <CourseViewer
+          onClose={() => setShowCourse(false)}
+          lang={lang}
+          onOpenSegmented={() => { setShowCourse(false); setShowSegmentedCourse(true); }}
+        />
+      )}
+      {showSegmentedCourse && (
+        <SegmentedCourseViewer
+          lang={lang}
+          courseSlug="tcp"
+          onClose={() => setShowSegmentedCourse(false)}
+          onStartExam={() => {
+            setShowSegmentedCourse(false);
+            handleStartExam();
+          }}
+        />
+      )}
       {showOnboarding && (
         <Onboarding 
           lang={lang} 
@@ -1886,102 +1918,8 @@ export default function App() {
         />
       )}
 
-      {/* --- Certificate Template --- */}
-      <div className="print-only" ref={certRef} style={{ containerType: 'inline-size' }}>
-        {certBg ? (
-          <div className="relative w-full h-full flex items-center justify-center bg-white overflow-hidden">
-            <img crossOrigin="anonymous" src={certBg} className="absolute inset-0 w-full h-full object-contain" alt="Certificate Background" />
-            <div className="absolute inset-x-0 w-full text-center z-10 flex flex-col items-center px-[10%]" style={{ top: `${nameY}%`, transform: 'translateY(-50%)' }}>
-               <h1
-                 className={`font-bold text-slate-900 leading-tight m-0 ${fontFamily}`}
-                 style={{
-                   color: nameColor,
-                   fontSize: userName.length > 45 ? '2.4cqw'
-                            : userName.length > 35 ? '3cqw'
-                            : userName.length > 28 ? '3.6cqw'
-                            : userName.length > 22 ? '4.2cqw'
-                            : userName.length > 15 ? '5cqw'
-                            : '6.3cqw',
-                   maxWidth: '100%',
-                   whiteSpace: 'nowrap',
-                   overflow: 'hidden',
-                   textOverflow: 'clip',
-                   paddingBottom: '0.2em'
-                 }}
-               >
-                 {userName}
-               </h1>
-            </div>
-            <div className="absolute inset-x-0 w-full text-center pointer-events-none z-10" style={{ top: `${serialY}%`, transform: 'translateY(-50%)' }}>
-               <p className={`font-bold tracking-widest leading-tight m-0 p-0 ${fontFamily}`} style={{ color: serialColor, fontSize: `${(serialFontSize / 794) * 100}cqw` }}>{generateSerial()}</p>
-            </div>
-          </div>
-        ) : (
-          <div
-            className="h-full w-full flex flex-col items-stretch justify-between relative"
-            style={{
-              background: '#FFFFFF',
-              padding: '120px 96px',
-              color: '#1A1A2E',
-              fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
-            }}
-          >
-            {/* Subtle hairline rules — no decorative stripes */}
-            <div style={{ position: 'absolute', insetInline: 96, top: 60, height: 1, background: '#ECE8FF' }} />
-
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <img crossOrigin="anonymous" src={currentLogo} alt="" referrerPolicy="no-referrer" style={{ width: 96, height: 96, objectFit: 'contain' }} />
-                <div>
-                  <div style={{ fontSize: 14, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#64748B', fontWeight: 600 }}>Tornix</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: '#0F172A' }}>Accreditation Center</div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#64748B', fontWeight: 600 }}>Serial</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', fontFeatureSettings: '"tnum"' }}>{generateSerial()}</div>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28 }}>
-              <div style={{ fontSize: 18, letterSpacing: '0.32em', textTransform: 'uppercase', color: '#7D42C6', fontWeight: 700 }}>
-                Certified Professional
-              </div>
-              <div style={{ fontSize: 18, color: '#64748B' }}>This is to certify that</div>
-              <h1 style={{ fontSize: 64, fontWeight: 700, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>
-                {userName}
-              </h1>
-              <p style={{ fontSize: 20, lineHeight: 1.6, color: '#4D4D4D', maxWidth: 1400, margin: '0 auto' }}>
-                has demonstrated professional proficiency in the Tornix integrated project management environment,
-                attaining a cumulative assessment score of <strong style={{ color: '#0F172A' }}>{score}%</strong>.
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', borderTop: '1px solid #ECE8FF', paddingTop: 36 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                {userPhoto && (
-                  <img crossOrigin="anonymous" src={userPhoto} alt="" referrerPolicy="no-referrer" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 16, border: '1px solid #ECE8FF' }} />
-                )}
-                <div>
-                  <div style={{ fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#64748B', fontWeight: 600 }}>Date issued</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#0F172A' }}>{new Date().toLocaleDateString()}</div>
-                  <div style={{ fontSize: 14, color: '#64748B', marginTop: 6 }}>{userEmail}</div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#64748B', fontWeight: 600 }}>Issuing authority</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#0F172A' }}>Tornix Global · Verified</div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 14px', borderRadius: 9999, background: '#ECE8FF', color: '#472572', fontWeight: 600, fontSize: 13 }}>
-                  AI-validated session
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Certificate template removed — server-side renderer in
+          netlify/functions/certificate-renderer is now the source of truth. */}
     </div>
   );
 }

@@ -10,7 +10,8 @@
       "DOM.Iterable"
     ],
     "types": [
-      "vite/client"
+      "vite/client",
+      "vitest/globals"
     ],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -24,6 +25,7 @@
       ]
     },
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
     "noEmit": true
   }
 }
