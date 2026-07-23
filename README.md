@@ -38,7 +38,7 @@ A bilingual accreditation platform for professional assessment, segmented traini
 1. Clone the repository and install locked dependencies:
 
    ```bash
-   git clone https://github.com/Alsenosy2024/Tornix.Accreditation.git
+   git clone https://github.com/Ailigent/Tornix.Accreditation.git
    cd Tornix.Accreditation
    npm ci
    ```

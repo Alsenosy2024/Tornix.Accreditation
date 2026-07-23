@@ -7,7 +7,7 @@ Standalone React + Express accreditation site that issues "Tornix Access Pass" c
 - **Live checkout**: `/opt/tornix` on branch `feat+ec2-migration`, owned by the `tornix` service user
 - **Web/API**: Caddy serves `/opt/tornix/dist` and proxies `/api/*` to Express on `127.0.0.1:3000`
 - **Services**: `tornix-api.service` and `tornix-cert-worker.service`; Postgres 16 and MinIO run on the same EC2 instance
-- **GitHub**: `Alsenosy2024/Tornix.Accreditation`
+- **GitHub**: `Ailigent/Tornix.Accreditation`
 - **Deployment**: manual, directly on the EC2 server; there is no CI/CD or Netlify deployment
 
 ## Stack
